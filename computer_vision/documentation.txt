@@ -1,0 +1,260 @@
+##################################################################
+
+======                   DOCUMENTATION                  ==========
+
+##################################################################
+
+
+--------------------------POINT CLOUD-----------------------------
+
+Notes: Handles 3D point cloud generation, manipulation, and storage. 
+       Provides memory management for dynamic point arrays and methods 
+       to export layouts or optimize density via voxel filtering.
+
+------------------------------------------------------------------
+PointCloud(struct)   - contains a dynamic Point3D array, an element 
+                       count tracking current points, and a capacity 
+                       limit for memory bounds
+
+PointCloud_make      - allocates a point cloud structure with a 
+                       specified initial memory capacity
+
+PointCloud_add_point - appends a 3D point to the cloud, managing dynamic 
+                       resizing if current capacity is exceeded
+
+PointCloud_free      - frees structural point cloud memory allocations 
+                       and underlying point arrays
+
+PointCloud_export_ply- exports point cloud data to an ASCII/Binary PLY 
+                       file; returns 1 for success and 0 for failure
+
+PointCloud_voxel_downsample - reduces point density by grouping points into 
+                              a 3D grid of defined cubic voxel sizes (meters)
+
+
+
+---------------------------SLAM MATH------------------------------
+
+Notes: Contains fundamental 3D coordinate mathematics, projective 
+       geometry, camera optics configurations, and spatial tracking 
+       transformation calculations.
+
+------------------------------------------------------------------
+Point3D(struct)      - simple data pack holding absolute spatial 
+                       floating-point coordinates for x, y, and z
+
+CameraIntrinsics(struct) - stores focal lengths (fx, fy) and principal 
+                           optical center offsets (cx, cy) for 2D/3D mapping
+
+Transform3D(struct)  - holds a contiguous 4x4 floating-point matrix used 
+                       to compute camera pose transformations
+
+make_transform_identity - initializes and returns an identity 4x4 matrix 
+                          representing zero structural rotation/translation
+
+transform_identity_3D   - applies a 4x4 Transform3D matrix to a 3D point 
+                          to change its frame of reference
+
+project_depth_to_3d  - takes a 4D [1, 1, H, W] depth map and back-projects 
+                       pixels into an allocated array of 3D points based 
+                       on camera intrinsics; tracks valid outputs
+
+triangulate_point    - processes corresponding pixel positions between two 
+                       camera views using a relative transform and camera 
+                       intrinsics to calculate a single 3D position
+
+
+
+-------------------------IMAGE DECODERS---------------------------
+
+Notes: Manages disk I/O operations for reading and writing tensors as 
+       images. Integrates spatial processing logic like image-to-column 
+       unrolling and object detection post-processing.
+
+------------------------------------------------------------------
+ColorChannelOrder(enum) - defines explicit color layouts: COLOR_BGR, 
+                          COLOR_RGB, or COLOR_GRAYSCALE
+
+BoundingBox2D(struct)   - stores 2D spatial coordinates (min/max bounds), 
+                          classification identity, and localized prediction 
+                          confidence scores
+
+Image_load_to_tensor - decodes an image file from disk directly into a 
+                       [channels, height, width] Tensor layout scaled 
+                       by a mapping max utility value (e.g., 1.0 or 255.0)
+
+Image_save_tensor_to_disk - serializes a [channels, height, width] structural 
+                            Tensor into an image file on disk with custom 
+                            channel mapping and normalization scaling
+
+img2col              - unrolls multidimensional image patches into a 2D 
+                       matrix format optimized for fast matrix multiplication 
+                       convolution passes
+
+col2img              - folds a 2D matrix layout back into a reconstructed 
+                       multidimensional image tensor channel configuration
+
+Image_tensor_to_bounding_boxes - parses raw neural network output tensors into 
+                                 an array of BoundingBox2D structures filtered 
+                                 by a confidence threshold
+
+Image_nonmax_suppression - filters overlapping 2D bounding boxes based on an 
+                           Intersection over Union (IoU) threshold ratio
+
+
+
+
+------------------------RAYCASTING / OCTREE------------------------
+
+Notes: Manages hierarchical 3D spatial partitioning, raycasting sweeps, 
+       and voxel status management. Supports compile-time switching between 
+       dynamic heap allocation and flat, index-based memory pooling.
+
+------------------------------------------------------------------
+VoxelState(enum)     - defines physical occupancy states for leaf voxels: 
+                       VOXEL_FREE or VOXEL_OCCUPIED
+
+NodeStability(enum)  - tracks temporal movement status: NODE_ACTIVE for areas 
+                       changing frequently, or NODE_STATIC for frozen history
+
+OctreeNode(struct)   - core block holding bounds, state metadata, and a unified 
+                       children slot switching between pointers and integer indices
+
+Octree_system_init   - pre-allocates a massive contiguous block array to serve as 
+                       the global cache pool if USE_MEMORY_POOL is enabled
+
+Octree_make_node     - returns a node pointer, claiming space sequentially from 
+                       the flat pool or falling back to a dynamic heap malloc pass
+
+Octree_free          - handles destruction; drops the main pool index offset back 
+                       to zero or traverses heap branches recursively to free pointers
+
+Ray_compute_direction- subtracts origin vectors from endpoints and applies a 
+                       normalization transform to yield a unit line trajectory
+
+Ray_box_intersect    - runs an optimized division-free AABB intersection check 
+                       to calculate entry (t_min) and exit (t_max) crossover times
+
+Ray_dda_traverse     - traces space using an Amanatides-Woo 3D DDA algorithm to 
+                       march through overlapping leaf child voxels directly
+
+Octree_traverse_ray  - traces space using a parametric ray-box hierarchical descent 
+                       to recursively clear or evaluate intersecting nodes
+
+Octree_insert_ray    - orchestrates ray sweeps to update visibility paths and set 
+                       the target endpoint voxel state to occupied
+
+Octree_get_child_index - applies bitwise checks against node midpoints to determine 
+                         the correct octant index (0-7) for a spatial coordinate
+
+Octree_update_stability_flags - applies a global bottom-up post-order pass to freeze 
+                                 untouched voxels and aggregate parent branch metrics
+
+Octree_invalidate_static_region - subjects nodes to AABB overlap checks to forcefully 
+                                  awaken frozen nodes pierced by moving elements
+
+Octree_get_occupied_leaves - flattens the octree; recursively processes leaves and 
+                             dumps all VOXEL_OCCUPIED 3D bounds into a flat array 
+                             up to a specific maximum layout allocation capacity
+
+Octree_check_predictive_collision - performs hierarchical box-to-box checking; 
+                                    recursively traverses nodes piercing a swept 
+                                    volume bounding box footprint to flag impending 
+                                    static obstacle impacts and wake up static regions
+
+
+
+---------------------------SCENE GRAPH----------------------------
+
+Notes: Orchestrates object-level 3D understanding over time. Converts low-level 
+       voxel configurations into clustered physical bodies, maintains historical 
+       tracking continuity against camera ego-motion, calculates kinematic 
+       properties, and handles swept-volume collision look-aheads.
+
+------------------------------------------------------------------
+BoundingBox3D(struct)- stores absolute minimum and maximum 3D spatial extents 
+                       representing an Axis-Aligned Bounding Box (AABB)
+
+TrackedObject(struct)- represents a discrete physical entity; contains a unique 
+                       tracking ID, character label string, spatial centroid, 
+                       3D bounding box, velocity vector, movability index score, 
+                       and active/lost temporal tracking tracking frame counters
+
+SceneGraph(struct)   - centralized global tracker; aggregates an array of tracked 
+                       objects, tracking limits, current array counts, and increments 
+                       the unique global identification sequence tracker
+
+SceneGraph_make      - allocates a scene graph tracking structure with a specified 
+                       maximum track capacity limit
+
+SceneGraph_free      - purges structural tracking memory allocations, freeing up 
+                       all tracked object array blocks
+
+SceneGraph_calculate_iou_3d - computes the mathematical Intersection over Union (IoU) 
+                             ratio volume overlap between two 3D bounding boxes; 
+                             returns a scalar classification metric from 0.0 to 1.0
+
+SceneGraph_extract_clusters_from_octree - pulls raw occupied leaves from an octree 
+                                          and executes a 3D density flood-fill 
+                                          clustering pipeline using an array queue; 
+                                          returns dynamically isolated object structures
+
+SceneGraph_update_tracking - matches anonymous incoming spatial shapes with active tracks 
+                             using a 3D IoU scoring matrix; handles SLAM ego-motion 
+                             compensation via bounding box corner transformations, updates 
+                             continuous velocity metrics, handles temporal tracking limits, 
+                             and registers new tracks
+
+SceneGraph_propagate_contacts - calculates continuous velocity path projections over a 
+                                specified time delta (dt) to stretch moving tracking 
+                                envelopes into a swept volume box; triggers hierarchical 
+                                proactive collision warning checks inside the mapping tree
+                                
+                                
+
+---------------------------AUTO LABELER---------------------------
+
+Notes: Implements an offline self-supervised pseudo-labeling engine. 
+       Maintains a fixed-size FIFO circular cache array of keyframes 
+       to cross-reference historical spatial data against streaming 
+       3D Scene Graph tracks via autoregressive sequence generation 
+       and spatial backpropagation.
+
+------------------------------------------------------------------
+Keyframe(struct)     - localized data pack caching single-frame historical 
+                       states; holds a unique tracking identifier, multi-channel 
+                       RGB and depth sensor image Tensors, global camera pose, 
+                       and its 2D bounded label arrays.
+
+AutoLabeler(struct)  - sequence coordinator tracking a circular timeline array 
+                       of historical frames, head indices for FIFO evictions, 
+                       and scalar IoU criteria thresholds for label matching.
+
+AutoLabeler_make     - allocates and clears an auto-labeler context structure; 
+                       initializes a circular cache timeline and tracking criteria.
+
+AutoLabeler_free     - recursively frees deep structures, clearing cached RGB 
+                       and depth image Tensors before freeing the labeler context.
+
+AutoLabeler_push_keyframe - deep-clones incoming frame metrics (RGB, depth, pose, 
+                            and 2D bounding boxes) into the current circular 
+                            buffer head, automatically evicting oldest states.
+
+AutoLabeler_export_autoregressive_sequence - steps sequentially backward from 
+                       the present frame into the past, incrementally accumulating 
+                       relative spatial matrices to project static 3D world 
+                       objects back into historical frame views to export a 
+                       continuous pseudo-labeled training dataset sequence.
+
+AutoLabeler_backpropagate_labels - projects refined modern 3D tracked object 
+                       bounds backward onto older 2D historical frames; 
+                       averages spatial bounds for overlapping targets or appends 
+                       missing bounding box sequences back down the timeline.
+
+AutoLabeler_generate_pseudo_targets - parses valid histories to harvest paired 
+                       training image reference vectors alongside finalized 2D 
+                       bounding target arrays for neural network consumption.
+
+AutoLabeler_extract_raw_historical_points - back-projects localized depth map 
+                       pixel matrices using camera focal properties to return a 
+                       freshly un-downsampled 3D local frame point array block.

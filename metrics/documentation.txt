@@ -1,0 +1,77 @@
+-------------------------PROFILER SYSTEM--------------------------
+
+Notes: Centralized low-overhead telemetry logger providing high-speed
+execution tracking. Captures multi-system structural latency alongside
+hardware metrics via file streaming, completely isolated from heap allocation
+routines to prevent artificial runtime jitter.
+
+SystemMetrics(struct) - main environment storage cell; consolidates algorithm
+execution timings, active tracking counts, active voxel
+skip parameters, RAM utilization pools, and system
+hardware temperatures
+
+ProfileNode(struct)   - tree block tracking active performance execution hierarchy;
+holds a string literal function tag, total execution call
+counts, start/end timestamps, and relative tree parent/child linkages
+
+profiler_init         - initializes the system; opens a high-performance output file descriptor
+for sequential CSV writing, writes headers, and initializes the root profile node
+
+profiler_shutdown     - finishes logging; checks the file descriptor, flushes outstanding
+telemetry rows to storage disk hardware, closes the file handle,
+and zeros out global metrics allocations
+
+profiler_clear_frame  - resets frame-specific temporary structures; re-points internal node pools
+to root nodes and prepares the tracking variables for incoming frame streams
+
+profiler_write_frame_csv - serializes the current frame state; dumps compiled system metrics, execution
+timings, and spatial analytics directly as a flat row entry into the open CSV file
+
+profiler_enter_function - compiler entry hook; claims a tracking node from a flat pre-allocated
+array pool, registers standard time lookups, and steps the tracking pointer
+deeper into the function execution tree
+
+profiler_exit_function  - compiler exit hook; registers final time lookups to compute total
+accumulated function execution duration and steps the tracking pointer
+back up to the parent caller node
+
+profiler_set_metric     - centralized data hub; accepts an exterior metrics snapshot structure, bulk
+updates systemic tracking numbers, and preserves maximum peak historical values
+
+profiler_update_tracking_metrics - data receptor; updates object tracking variables (active tracks,
+ID switches, fragmentations, and localization error metrics) inside
+the centralized logging system
+
+profiler_update_voxel_metrics    - data receptor; updates mapping efficiency values (voxel skip ratio,
+map convergence rate, and divergence error metrics) inside the
+centralized logging system
+
+profiler_track_malloc   - memory tracking wrapper; scales raw byte allocation metrics to megabytes,
+adds values to the active RAM footprint, and tracks lifetime memory watermarks
+
+profiler_track_free     - memory tracking wrapper; scales freed bytes to megabytes, safely decrements
+the current RAM footprint, and preserves peak memory records untouched
+
+-------------------------EVALUATION ENGINE-------------------------
+
+Notes: Ground-truth validation engine used to compute standard academic benchmarks.
+Runs completely inside test environments, decoupling complex evaluation
+algorithms from production runtime code to prevent measurement distortion.
+
+GTObject(struct)      - standard representation for dataset ground-truth entries;
+holds an absolute identification scalar and a flat 3D coordinate
+centroid array position configuration [x, y, z]
+
+evaluate_tracking_quality - computes standard multi-object tracking (MOT) criteria; routes
+active SceneGraph tracks into a greedy Euclidean match finder, applies
+a depth-dependent dynamic gate checking threshold to map objects relative
+to the camera frame, isolates identity anomalies, and updates tracking metrics
+
+evaluate_mapping_quality  - computes mapping convergence and structural mapping accuracy; triggers
+a recursive cross-tree difference pass over the current octree, pulls
+active voxel skip counters via compilation-linked extern variables,
+and updates mapping telemetry logs
+
+compute_tree_differences  - internal recursive parsing helper; marches down an active octree and a
+ground-truth octree concurrently using dual-tree indexing macros, isolates
+leaf cell state mismatches, and aggregates total geometric divergence distances

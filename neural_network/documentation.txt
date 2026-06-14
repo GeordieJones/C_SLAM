@@ -1,0 +1,387 @@
+
+##################################################################
+
+======                   DOCUMENTATION                  ==========
+
+##################################################################
+
+
+-----------------------------MATRIX-------------------------------
+
+Notes: Orignially built before the Tensor library. In general best
+       to use the Tensor library but it can still be used if you
+       are certian that you will only need a 2D matrix
+
+------------------------------------------------------------------
+Matrix(struct)   - contains an int rows and cols and a float pointer
+                   array with all the data values. rows and cols are
+                   used to artifically make a matrix from a 1D array
+
+Matrix_make      - allocates the sequential memory block, rows, cols
+
+Matrix_print     - prints out the matrix in row column format
+
+Matrix_free      - frees the memory allocated for the matrix stuct
+
+Matrix_zero      - loops through all the data and assigns it to 0.0f
+
+Matrix_rand      - loops through all the data and assigns it to a
+                   random float to 4 decimal places
+
+Matrix_scale     - loops through all data and multiplies it by a const
+
+Matrix_sum       - returns sum of all values in the data
+
+Matrix_sumrow    - sums all the values in the given index row
+
+Matrix_sumcols   - sums all the values in the given index col
+
+Matrix_transpose - swaps the data[row, col] to data[col,row]
+
+Matrix_subtract  - subtracts self[i] by x[i]
+
+Matrix_add       - adds self[i] to x[i]
+
+Matrix_map       - preforms a float function on each data value
+
+Matrix_hadamard  - preforms a hadamard multiplication of each value
+
+Matrix_dot       - dots each value and returns the new matrix
+
+Matrix_reshape   - sets row to new_row and col to new_col
+
+Matrix_addon     - is more of an append function to add a matrix on
+
+Matrix_copy      - copys from src to dest as long as they have the same
+                   total values
+
+Matrix_clone     - returns a new matrix pointer to a copy of the input
+
+Matrix_min_max   - returns both min and the max of all data in matrix
+
+Matrix_args_min_max - finds the min and max for a given row and axis
+
+Matrix_min       - returns absolute min
+
+Matrix_max       - returns absolute max
+
+Matrix_args_min  - retunrs min for a given axis and index
+
+Matrix_args_max  - returns max for a given axis and index
+
+
+----------------------------TENSOR--------------------------------
+
+Notes: Core multidimensional array library supporting up to 4D tensors. 
+       Replaces the Matrix class for generic, high-dimensional neural 
+       network mathematics.
+
+------------------------------------------------------------------
+Tensor(struct)       - contains raw float pointer data, dimension count, 
+                       shape array, stride rules, and element count
+
+MinMax(struct)       - simple data pack holding absolute values and linear 
+                       index locations for a minimum and maximum pair
+
+Tensor_make          - allocates a multidimensional memory block matching 
+                       a shape array
+
+Tensor_free          - frees tensor data buffers and structural allocations
+
+Tensor_at            - retrieves a specific value at given coordinate indices
+
+Tensor_print         - outputs the multidimensional tensor data structurally 
+
+Tensor_zero          - sets every element within the tensor to 0.0f
+
+Tensor_rand          - fills the tensor elements with randomized float values
+
+Tensor_scale         - scales every element in the tensor by a constant multiplier
+
+Tensor_sum           - calculates the absolute cumulative sum of all elements
+
+Tensor_sum_axis      - collapses a specific axis dimension by summing its values 
+
+Tensor_copy          - performs a high-speed memory copy from source to destination
+
+Tensor_clone         - allocates and returns a completely identical tensor copy
+
+Tensor_min_max       - locates and returns the global min and max structures
+
+Tensor_argsmax       - identifies maximum index positions along a specific axis
+
+Tensor_argsmin       - identifies minimum index positions along a specific axis
+
+Tensor_map_axis      - executes a custom float function mapped along an axis
+
+Tensor_map           - maps a custom mathematical operation over every individual value
+
+Tensor_reshape       - reconfigures shape properties without altering flat data memory
+
+Tensor_hadamard      - executes element-by-element (Hadamard) multiplication
+
+Tensor_lazy_transpose- alters stride orientations to fake a transposition cheaply
+
+Tensor_matmul        - performs matrix multiplication across valid tensor dimensions
+
+Tensor_eager_transpose- actively moves and rewrites data into a new transposed layout
+
+Tensor_vector_dot    - performs a standard 1D vector dot product calculation
+
+Tensor_contract      - performs tensor contraction (generalized dot) across axes
+
+Tensor_append        - glues an additional tensor block along a targeted axis
+
+Tensor_vector_addition- runs an in-place element-wise addition of two vectors
+
+
+
+
+---------------------------DATASET--------------------------------
+
+Notes: Handles data management, processing, and loading. Allows 
+       for dataset manipulation, data shuffling via index mapping, 
+       and specialized image/video formatting utilities.
+
+------------------------------------------------------------------
+Dataset(struct)      - contains tensors for inputs (x) and targets (y), 
+                       total samples, and an index array for shuffling
+
+Dataset_make         - initializes a dataset struct using provided 
+                       input and target tensors
+
+Dataset_free         - frees the dataset memory block and internal pointers
+
+Dataset_read_csv     - parses a CSV file to build a dataset based on 
+                       specified label column indices
+
+Dataset_read_mnist   - parses and loads the standard MNIST image and 
+                       label binary files into a dataset
+
+Dataset_read_video   - decodes raw frame bytes into a destination tensor
+
+img_bgr_to_greyscale - converts a BGR raw image buffer into a grayscale tensor
+
+img_rgb_to_greyscale - converts an RGB raw image buffer into a grayscale tensor
+
+img_resize_nearest   - resizes a source image tensor using nearest-neighbor 
+                       interpolation
+
+img_invert           - inverts the pixel intensities of the target tensor
+
+img_threshold        - applies a binary threshold to pixel data in the tensor
+
+Dataset_min_max_scale- scales dataset values into a specified min/max range
+
+Dataset_normalize    - applies standard Z-score normalization to the dataset
+
+Dataset_shuffle      - randomizes the index map array to shuffle inputs 
+                       and targets together safely
+
+Dataset_get_batch    - extracts a specific sliced window of data into a 
+                       provided batch dataset struct
+
+Dataset_split        - divides a master dataset into distinct training and 
+                       validation dataset structs
+
+
+
+
+
+---------------------------ACTIVATION-----------------------------
+
+Notes: Contains various standard neural network activation functions
+       and their derivatives, operating over the Tensor library.
+
+------------------------------------------------------------------
+relu_inplace         - applies the Rectified Linear Unit function 
+                       directly onto the input tensor
+
+relu                 - applies ReLU on a source tensor and stores 
+                       the result in a destination tensor
+
+relu_derivative      - computes the gradient of the ReLU function 
+                       for backpropagation
+
+leaky_relu_inplace   - applies Leaky ReLU (allowing a small negative 
+                       slope) directly onto the input tensor
+
+leaky_relu           - applies Leaky ReLU on a source tensor and 
+                       stores the result in a destination tensor
+
+leaky_relu_derivative- computes the gradient of the Leaky ReLU 
+                       function for backpropagation
+
+sigmoid_inplace      - applies the Sigmoid activation function 
+                       directly onto the input tensor
+
+sigmoid              - applies Sigmoid on a source tensor and stores 
+                       the result in a destination tensor
+
+sigmoid_derivative   - computes the gradient of the Sigmoid function 
+                       using the already activated output tensor
+
+softmax              - computes the Softmax probabilities across a 
+                       specified axis for given logit scores
+
+softmax_cross_entropy_derivative - computes the combined gradient 
+                       of Softmax and Cross-Entropy loss 
+
+
+
+
+
+-----------------------------LAYER--------------------------------
+
+Notes: Defines a polymorphic neural network layer infrastructure 
+       supporting Fully Connected (Dense), Convolutional (2D), 
+       and Max Pooling operations. Manages dynamic shape caching, 
+       parameter optimization, and multidimensional backpropagation.
+
+------------------------------------------------------------------
+ActivationType(enum) - defines choices for non-linear activations:
+                       NONE, RELU, LEAKY_RELU, SIGMOID, or SOFTMAX.
+
+Layer(struct)        - Polymorphic container holding configuration dims
+                       (input/output, channels, kernel, stride, padding), 
+                       parameter matrices (weights, biases), shared 
+                       optimization gradients (d_weights, d_biases), and 
+                       specialized forward/backward routing caches 
+                       (inputs_cache, z_cache, a_cache, x_cache, pooling_indices).
+
+Layer_make_dense     - Allocates and initializes a fully connected layer 
+                       with specified dimensions, utilizing Uniform He 
+                       initialization (sqrt(6/fan_in)) for weights.
+
+Layer_make_convolution - Allocates a 2D spatial convolution layer. Initializes 
+                       a 2D weight matrix using Uniform He initialization 
+                       mapped to flat kernel features, alongside localized 
+                       image unrolling column caches.
+
+Layer_make_pooling   - Allocates a spatial Max Pooling layer configuration. 
+                       Sets up dedicated 4D spatial integer tracking maps 
+                       to record window argmax elements.
+
+Layer_free           - Safely frees all allocated tensor structures, dynamic 
+                       activation blocks, tracking indices, and structural 
+                       heap allocations assigned to a layer instance.
+
+DenseLayer_forward   - Multiplies inputs by the weight matrix, applies vector 
+                       bias additions, tracks activations, and scales dynamically 
+                       to changing runtime batch sizes.
+
+DenseLayer_backward  - Backpropagates through activations, calculates parameter 
+                       gradients via matrix multiplication, and returns the 
+                       loss gradient with respect to the dense layer inputs.
+
+ConvolutionLayer_forward - Unrolls incoming mini-batch images sequentially into 
+                       2D column configurations, executes vectorized filter 
+                       matrix multiplications, adds spatial biases, and caches 
+                       raw inputs and activation maps.
+
+ConvolutionLayer_backward - Derives activation and bias updates, utilizes local 
+                       stack/heap view isolations to thread safe accumulate 
+                       batch weight gradients, and runs col2img to distribute 
+                       spatial gradients to the receiving input buffer.
+
+PoolingLayer_forward - Collapses spatial inputs using a 3-loop optimized layout 
+                       to track the highest value per sliding window, caching 
+                       exact flat memory indices for backprop route tracking. 
+                       Includes dynamic batch size safety tracking.
+
+PoolingLayer_backward - Evaluates incoming gradients and uses cached pooling masks 
+                       as an O(N) inverse switchboard to directly route 
+                       accumulated loss gradients back to their origin coordinates.
+
+Layer_update         - Flattens multidimensional parameter spaces to update 
+                       weights and biases sequentially in memory using standard 
+                       gradient descent math based on a learning rate.
+
+img2col (helper)     - Resolves 4D tensor padding and strides, unrolling localized 
+                       spatial sliding windows of a single image frame into a 
+                       continuous 2D matrix structure.
+
+col2img (helper)     - Inverts column layouts by accumulating overlapping window 
+                       gradient segments back into their proper 4D spatial image 
+                       tensor representation.
+
+
+
+
+
+
+
+---------------------------NETWORK--------------------------------
+
+Notes: Master wrapper for managing neural network construction, 
+       execution graphs, layers, backpropagation, and loss functions.
+
+------------------------------------------------------------------
+LayerType(enum)      - lists supported layer types: DENSE, CONVOLUTION, 
+                       or POOLING
+
+NetworkLayer(struct) - generic wrapper containing the layer type identifier 
+                       and a void pointer to the underlying layer data
+
+Network(struct)      - tracks network depth, an array of layers, cached 
+                       outputs/gradients per layer, and current loss
+
+LossType(enum)       - lists supported loss formulas: MSE or CROSS_ENTROPY
+
+Network_make         - allocates and sets up an empty network structure
+
+Network_add_dense    - appends a fully connected layer to the network architecture
+
+Network_forward      - executes sequential forward passes through all layers
+
+Network_backward     - runs backpropagation from output to input layers
+
+Network_update       - triggers gradient descent updates across all layers 
+                       using a learning rate
+
+Network_compute_loss - calculates loss value and derives the initial loss 
+                       gradient destination tensor
+
+Network_free         - completely releases network structural memory and 
+                       layer components
+
+
+
+
+---------------------------TRAINER--------------------------------
+
+Notes: Manages the machine learning training pipeline. Handles execution 
+       of mini-batch gradient descent loops, data splitting, real-time 
+       progress evaluations, and saving/loading model state variables.
+
+------------------------------------------------------------------
+Hyperparameters(struct) - configuration container for values like batch size, 
+                          max epochs, learning rate, loss type, and early stopping
+
+Progress(struct)        - diagnostic state tracker containing values like current 
+                          epoch, best validation loss, and unchanged counter
+
+Trainer_train           - executes the master mini-batch optimization loop on a 
+                          network with validation evaluation and early stopping
+
+Trainer_save_model      - serializes network structure, layer configurations, 
+                          weights, biases, and current execution progress to a file
+
+Trainer_load_model      - extracts and reconstructs network components or updates 
+                          in-place layers from a saved binary file format
+
+Trainer_evaluate        - runs validation metrics to compute average network 
+                          loss and classification accuracy scores
+
+------------------------------------------------------------------------------
+MODEL LOADING PIPELINE (OPTION A vs. OPTION B):
+The `Trainer_load_model` function automatically splits behavior based on the 
+operational state of the destination `Network* net` structure:
+[OPTION A: In-Place Overwrite]   [OPTION B: Fresh Reconstruction] 
+
+STRICT SERIALIZATION LAYOUT ORDER:
+Each layer is written out sequentially as:
+Layer Metadata (Type, Activation) -> Weights Metadata (ndim, shape) -> 
+[RAW WEIGHTS DATA FLOATS] -> Biases Metadata (ndim, shape) -> [RAW BIASES DATA FLOATS]
+
+==============================================================================

@@ -1,0 +1,333 @@
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+--------------------NEURAL NETWORK SECTION-----------------------
+			   [DONE]
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+
+tensor.c / .h  (DONE)
+    create tensor with along with all the needed functions on the tensors
+
+
+
+make the dataset.h and dataset.c (DONE)
+    these should have a way to take in input data from the source
+    CSV_parsring
+    min max scaling and normilization
+    batching and shuffling for stocastic gradient decent
+
+
+
+
+activation.c and activation.h (DONE) 
+    need to make what the activates the ML programs
+    -ReLU and its derivatives
+    sigmoids
+    softmax
+
+
+
+
+
+Layer struct  (DONE)
+    - combination of 
+        -weights matrix
+        -biases matrix
+        -inputs matrix
+        -weights gradient matrix
+        -bias's gradeient matrix
+
+    -NOTE in convolution backward there are 3 seperate zero calls might make them 1
+
+
+
+Network struct (DONE)
+    -contains layer pointers for forward, backward propogation and updating weights
+
+
+
+trainer.c / .h (DONE)
+    - training loop wrapper
+    - early stopping based on loss tracking
+    - model saving
+    - model checkpoints so if it crashes it can pick up from last point
+    
+    
+    
+
+
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+--------------------COMPUTER VISION SECTION-----------------------
+			     [DONE]
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+[DONE BUT NOT FULLY TESTED]
+
+
+image_decoders.h / .c (DONE)
+    - loading in and convolutions
+    - pooling layers
+    - STB_image integrators for jpeg into tensor
+    - img to col for optimized convolutions
+    - logic to turn output into bounding boxes
+    - filter for overlapping bounding boxes
+
+
+
+
+Slam_math.h /.c (DONE)
+    -distance estimation and trianglization
+    - 2D to 3D by adding estimated distance into a 3D format
+    - transform matrices to track camera movement
+    - make a calibration struct to handel unknown camera units
+    -point struct
+
+
+
+point_cloud.c / .h (DONE)
+    -voxel downsampling to merge close items
+    -export to standered format
+
+
+raycasting.c / .h (DONE)
+    - cast and area to free or occupied space
+    - once a item has been occupied it is cast to immovable and only gets checked every 30 seconds instead of every cycle 
+
+
+scene_graph.h / .c (DONE)
+    -object tracking struct
+    -static vs movable score that rates how movable a item is and will check those items based on its movability score
+    - spatial database to not need to recreate after every new image
+    -id label to keep track of what is what between images
+
+
+auto_labeler.h / .c (DONE)
+    - keyframe history buffer
+    - temporal label backpropgation using the history and current
+    - psdeuo target generator based on current view
+
+
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+----------------METRICS/OPTIMIZATION SECTION----------------------
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+[STARTING NOW]
+
+profiler.h /.c 
+    - microsecond linux timers for regesteing quantization overhead and microsecond speed
+    - throughput metrics
+    - all other metrics such as cpu and gpu heat, work, and loss of quality
+    - ram_allocated_mb,active_tracks_count,id_switches
+    - full library for getting metrics so test_suite can just call get_<metric>
+
+evaluator .h / .c
+	- has math for evaluation tracking and mapping quality to be called by test_suite
+    
+    
+test_suite.h/.c
+    -determisitic input matrices
+    -ground truth comparisions
+    -latency, jitter, loss, etc. 
+    -can test power consumption
+    -can just be called in the runner program and it will time and track every function call (I think this is possible because I dont want to manually put timer starts and stops on each function)
+    -needs to not count the time it took to make its own calls and writes
+    -do to nested funcitons when writing to the csv there needs to be a way to say started funciton then the inner times and at the end that functions time
+    -automatic csv reporter with all the metrics 
+    
+    
+
+hardware_hal.h / .c  (this can be done last)
+    - unference interface
+    - conditional compilation and loading 
+    - SIMD optimiztion for (NEON / AVX)
+
+
+      
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+--------------------PROGRAMS SECTION------------------------------
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+detector_bridge.h / .c (TODO)
+	- needs to brige the gap between the neural_network and the computer vision pipeline
+	- will take in parameters such as output layers and use conversion functions in image decoders to line the forward process
+	- also needs to align backwards when doing the online learning to match output data to the neural_network
+	- should act as the glue for the two libraries
+
+distance_detection_train.c
+	- the first main program that we will use to train distance detection from
+
+distance_detection_run.c
+	- this will have three modes 
+		1: just run the image detection and full computer vision pipeline (No updating)
+		2: run the full computer vision pipeline with the online learning with just distance detection
+		3: run image detection and computer vision pipeline to create csv of psuedo data to train next model
+
+unified_model_train.c
+	- this will take the csv that we created from past runs and use them to train a model to not need all of the optical math and processing but instead to just  "intrinsically" keep track of the boxes and objects so that all that is needed to run this model is to pass in the data
+	
+unified_model_run.c
+	-this will have two options:
+		1: just running the fully trained model
+		2: online self updating with the current world (final goal)
+
+
+
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+--------------------PAPER#2 SECTION------------------------------
+
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+tracking_evaluator.h / .c (The Metrics Engine)
+
+Robotics journals will not take your word that your tracking works; you must quantify it using standard Multi-Object Tracking (MOT) metrics. This library sits alongside your Scene Graph to monitor tracking quality, specifically focusing on handling occlusions and camera jitter.
+
+    What it does: It tracks ground-truth object positions (either from a simulated dataset or manual validation frames) and compares them against your active Scene Graph IDs.
+
+    Key Metrics to Compute:
+
+        ID Switches (IDSW): The number of times a single physical object accidentally changes its tracking ID (e.g., when passing behind an obstacle). Minimizing this proves your object permanence logic works.
+
+        Fragmentation (FRAG): How many times a track is interrupted and lost before being re-acquired.
+
+        Localization Error: The precise Euclidean distance (in centimeters) between your tracked centroid and the true physical object center.
+
+
+
+active_perception_analyzer.h / .c (The Map Convergence Tracker)
+
+To publish on the concept that "some points do not need to be updated," you must mathematically prove that your selective voxel freezing algorithm saves processing power without degrading map accuracy.
+
+    What it does: It acts as a telemetry layer over raycasting.c. Every time a ray is cast or a voxel state is modified, this library hooks in to profile the update density.
+
+    Key Metrics to Compute:
+
+        Voxel Update Skip Ratio: The percentage of voxels bypassed per frame because they were flagged as NODE_STATIC.
+
+        Map Convergence Rate: How many frames it takes for an unfamiliar room to reach a stable state (99% of voxels unchanging) using your selective method versus a traditional "always-update" baseline.
+
+        Voxel Divergence Error: A metric confirming that frozen regions didn't miss real structural changes (validating your Octree_invalidate_static_region threshold).
+
+
+
+
+
+
+
+
+the finished product should look first be able to train a model to run MiDaS like depth estimation and group points as the same object so that it can then make a 3D map rendering of the visible environment. During this training it should have test functions that are able figure out how much time was spent at each function and write it to a csv so I can see the bottlenecks. Then once finished with the original training it should have a flip switch for live learning which if off it just run its mapping predictions, if on it writes its prediction then after it has scene more of the room it trains itself on what the rest of the room actually looks like. Once this is fully functioning I should have a lot of test and training data to start working on the hardware optimizations.
+
+
+
+I would like to at the end add someway either in a library call or in the worst case manually adding to each function a timer and maybe some other metric tracker and those print to a csv so when training happens or when I am running it it will give me a csv of how much every function was called, how much time it took, how much energy, and maybe some other things that way I can constantly find the biggest bottlenecks and where I need to improve things. 
+
+
+
+
+Gemini generate datasets that can be used to train:
+
+1. For Autonomous/Mobile Robotics: The Waymo Open Dataset or KITTI
+
+If your platform mimics a drone or a ground vehicle, use these industry gold standards:
+
+    KITTI Vision Benchmark: A classic, highly manageable choice for a custom C loader. It provides synchronized camera images, calibration matrices (intrinsics/extrinsics), and 3D depth frames. It is lightweight enough to download and parse easily.
+
+    Waymo Open Dataset: A vast, modern option containing millions of highly accurate 2D/3D frames, camera calibrations, and tracking IDs across distinct environmental conditions.
+
+2. For General/Indoor Scenes: NYU Depth V2 or SUN RGB-D
+
+If you are deploying an indoor robot, a robotic arm, or navigating standard rooms:
+
+    NYU Depth V2: Contains thousands of video sequences of indoor scenes recorded by RGB and Depth cameras, paired with pre-baked ground truth depth data.
+
+    SUN RGB-D: A comprehensive indoor benchmark providing spatial images with detailed 3D bounding box layouts.
+
+3. For General Objects: Google Open Images V7
+
+    If you just need your network to recognize standard everyday items, Open Images V7 houses over 16 million bounding boxes across 600 structural classes. It can be downloaded in partial fragments so you don't have to pull down the massive 500+ GB full set.
+
+
+
+
+
+
+Paper 1 guide:
+
+Figure 1: Latency Breakdown Stacked Bar Chart * Metrics needed: Microsecond timers (nn_inference_us, octree_raycast_us, scene_graph_us) plotted across your 4 target edge GPUs. This proves exactly which modules scale best on tighter hardware.
+
+[ ] Figure 2: Memory Stability Timeline
+
+    Metrics needed: VRAM allocation tracking logged over a continuous 10,000-frame stress test. This generates a perfectly flat line, proving your index-based memory pool eliminates heap fragmentation.
+
+[ ] Figure 3: Frame Rate vs. Wattage Efficiency
+
+    Metrics needed: Total throughput (FPS) divided by the GPU power profile mode (e.g., 10W vs 15W vs 30W). This highlights your stack's edge viability.
+    
+    
+    
+Paper 2: The Active Perception & Self-Training Paper (Robotics/AI Domain)
+
+This paper focuses on object permanence, selective voxel updating, and autonomous edge learning.
+
+    [ ] Figure 1: Voxel Compute Reduction vs. Accuracy
+
+        Metrics needed: Voxel Update Skip Ratio plotted against Voxel Divergence Error. This proves that freezing static spaces drops your compute overhead by 60−80% without losing map quality.
+
+    [ ] Figure 2: Tracking Continuity Under Occlusion
+
+        Metrics needed: ID Switches (IDSW) and Fragmentation (FRAG) during tests where objects pass behind barriers. This proves your ego-motion corrected scene graph maintains object permanence.
+
+    [ ] Figure 3: Neural Network Learning Curve (ΔmAP)
+
+        Metrics needed: Mean Average Precision evaluated before and after running your AutoLabeler. This shows a rising curve that proves the robot successfully self-trained in a new environment.
+        
+        
+        
+        
+        
+        
+        
+        
+        
+FOR OCTREE TEST
+gcc -Wall -Wextra -O2 test_raycasting_octree.c raycasting.c slam_math.c scene_graph.c ../../neural_network/libraries/tensor.c -o test_suite -lm
+./test_suite
+
+
+FOR THE SCENE_GRAPH TEST
+gcc -Wall -Wextra -O2 test_scene_graph.c raycasting.c slam_math.c scene_graph.c ../../neural_network/libraries/tensor.c -o scene_graph_test -lm
+
+
+gcc -Wall -Wextra -O2 test_auto_labeler.c auto_labeler.c scene_graph.c raycasting.c slam_math.c ../../neural_network/libraries/tensor.c -o auto_labeler_test -lm
+
+
+--------------METRICS--------------
+Per function latency - microsecond time spent in each function - baseline against OPENCV
+Jitter - standard variance in frame processing over a sequence of frames roughly(10,000) - < 2ms is good; >10 is bad
+Peak & sustained memory allocation - total heap allocation tracked - 1 time memory allocations
+frames per sec / watts - power consutption per throughput - 25FPS at 10W
+
+voxel_skip ratio - computes saving of skipping un-active nodes - 60-80% in still enviorments
+voxel_divergance error - distance between frozen map and ground truth - <2-5 cm
+Map convergance rate - number of frames to get to stable map where nothing changes in still room- smooth curve
+
+ID switches - times active tack changes id after moving behind something or other permance test - <5
+Fragmentation - tracks number of times an object was lost then picked back up - 
+centroid error - magnitude of distance from predicted to real
+
+delta mean average precision - average precision change as model self learns
+Quantization loss - loss from HAL optimizations
