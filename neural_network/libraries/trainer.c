@@ -309,6 +309,9 @@ void Trainer_load_model(Network* net, Hyperparameters* params, Progress* progres
             int input_dim = w_shape[0];
             int output_dim = w_shape[1];
 
+
+            // NEED TO UPDATE WITH CURRENT API'S'
+
             Layer* layer = Layer_make(input_dim, output_dim, activation);
             
             fread(layer->weights->data, sizeof(float), layer->weights->total_elements, file);

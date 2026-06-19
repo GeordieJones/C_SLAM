@@ -31,10 +31,7 @@ Tensor* Image_load_to_tensor(const char* filepath, ColorChannelOrder channel_ord
 int Image_save_tensor_to_disk(const char* filepath, const Tensor* img_tensor, ColorChannelOrder channel_order, float mapping_val);
 
 
-//already implemented
-void img2col(const Tensor* input, int batch_idx, int channels, int height, int width, int kernel_size, int stride, int padding, Tensor* output);
 
-void col2img(const Tensor* input, int batch_idx, int channels, int height, int width, int kernel_size, int stride, int padding, Tensor* output);
 
 BoundingBox2D* Image_tensor_to_bounding_boxes(const Tensor* output, float confidense_threshold, int* out_box_count, int classes);
 

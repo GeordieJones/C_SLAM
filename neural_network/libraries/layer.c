@@ -7,7 +7,135 @@
 #include <string.h>
 #include <float.h>
 
-#include "../../computer_vision/libraries/image_decoders.h"
+
+
+
+
+
+
+//two helper funcitons need to be here because in computer_vision is caused a circular dependancy
+
+void img2col(const Tensor* input,int batch_idx, int channels, int height, int width, int kernel_size, int stride, int padding, Tensor* output){
+
+    int output_height = (int)((height - kernel_size + (2*padding)) / stride) + 1;
+    int output_width = (int)((width - kernel_size + (2*padding)) / stride) + 1;
+    
+    int cols = output_height * output_width;
+    
+    int col_idx = 0;
+    
+
+    for(int y = 0; y < output_height; y++){
+        for(int x = 0; x < output_width; x++){
+           
+            int row_idx = 0;
+
+            for(int c = 0; c < channels; c++){
+
+                int base_input_y = (y * stride) - padding;
+                int base_input_x = (x * stride) - padding;
+
+                for(int ky = 0; ky < kernel_size; ky++){
+
+                    int input_y = base_input_y + ky;
+                    
+                    if(input_y < 0 || input_y >= height){
+                        //dont check rest of row just fill zero
+                        for (int kx = 0; kx < kernel_size; kx++) {
+                            int dest_idx = row_idx * cols + col_idx;
+                            output->data[dest_idx] = 0.0f;
+                            row_idx++;
+                        }
+                        continue;  
+                    }
+
+                    for(int kx = 0; kx < kernel_size; kx++){
+    
+                        int input_x = base_input_x + kx;
+                        int dest_idx = row_idx * cols + col_idx;
+
+                        if(input_x < 0 || input_x >= width){
+                            output->data[dest_idx] = 0.0f;
+                        }else{
+                            int src_idx =   (batch_idx * input->strides[0]) +
+                                            (c * input->strides[1]) +
+                                            (input_y * input->strides[2]) +
+                                            (input_x * input->strides[3]);
+                            output->data[dest_idx] = input->data[src_idx];
+
+                        }
+                        row_idx++;
+                    }
+                }
+            }
+            col_idx++;
+        }
+    }
+}
+
+
+
+
+
+void col2img(const Tensor* input,int batch_idx, int channels, int height, int width, int kernel_size, int stride, int padding, Tensor* output){
+
+    int output_height = (int)((height - kernel_size + (2*padding)) / stride) + 1;
+    int output_width = (int)((width - kernel_size + (2*padding)) / stride) + 1;
+    
+    int cols = output_height * output_width;
+    
+    int col_idx = 0;
+
+    Tensor_zero(output);
+    
+
+    for(int y = 0; y < output_height; y++){
+        for(int x = 0; x < output_width; x++){
+           
+            int row_idx = 0;
+
+            for(int c = 0; c < channels; c++){
+
+                int base_input_y = (y * stride) - padding;
+                int base_input_x = (x * stride) - padding;
+
+                for(int ky = 0; ky < kernel_size; ky++){
+
+                    int input_y = base_input_y + ky;
+                    
+                    if(input_y < 0 || input_y >= height){
+                        row_idx += kernel_size;
+                        continue;  
+                    }
+
+                    for(int kx = 0; kx < kernel_size; kx++){
+    
+                        int input_x = base_input_x + kx;
+                        int src_idx = row_idx * cols + col_idx;
+
+                        if(!(input_x < 0 || input_x >= width)){
+                            int dest_idx =  (batch_idx * input->strides[0]) +
+                                            (c * input->strides[1]) +
+                                            (input_y * input->strides[2]) +
+                                            (input_x * input->strides[3]);
+                            output->data[dest_idx] += input->data[src_idx];
+                        }
+                        row_idx++;
+                    }
+                }
+            }
+            col_idx++;
+        }
+    }
+}
+
+
+
+
+
+
+
+
 
 
 

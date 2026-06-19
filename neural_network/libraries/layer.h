@@ -48,6 +48,9 @@ typedef struct {
 } Layer;
 
 
+void img2col(const Tensor* input, int batch_idx, int channels, int height, int width, int kernel_size, int stride, int padding, Tensor* output);
+
+void col2img(const Tensor* input, int batch_idx, int channels, int height, int width, int kernel_size, int stride, int padding, Tensor* output);
 
 
 Layer* Layer_make_dense(int input_dim, int output_dim, ActivationType activation);
