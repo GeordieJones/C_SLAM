@@ -1,7 +1,4 @@
 //* * Compiling with '-finstrument-functions' will automatically route all function
-//
-//
-//
 
 
 #ifndef PROFILER_H
@@ -119,9 +116,9 @@ void profiler_log_manual_block(const char* name, uint64_t duration_us);
 //for microsecond timers on each function
 #if defined(__GNUC__) || defined(__clang__)
 
-void __attribute__((no_instrument_function__)) __cyg_profile_func_enter(void *this_fn, void *call_site);
+void __attribute__((__no_instrument_function__)) __cyg_profile_func_enter(void *this_fn, void *call_site);
 
-void __attribute__((no_instrument_function__)) __cyg_profile_func_exit(void *this_fn, void *call_site);
+void __attribute__((__no_instrument_function__)) __cyg_profile_func_exit(void *this_fn, void *call_site);
 #endif
 
 

@@ -2,8 +2,8 @@
 #define EVALUATOR_H
 
 #include <stdint.h>
-#include "scene_graph.h"
-#include "raycasting.h"
+#include "../../computer_vision/libraries/scene_graph.h"
+#include "../../computer_vision/libraries/raycasting.h"
 
 typedef struct {
     uint32_t gt_id;
@@ -31,4 +31,4 @@ void evaluate_tracking_quality(const TrackedObject* active_objects, uint32_t act
 void evaluate_mapping_quality(const OctreeNode* current_octree_root, 
                               const OctreeNode* ground_truth_octree_root);
 
-#endif
+#endif// EVALUATOR_H

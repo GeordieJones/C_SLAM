@@ -1,5 +1,5 @@
-#include "layer.h"
-#include "tensor.h"
+#include "../libaries/layer.h"
+#include "../libaries/tensor.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>

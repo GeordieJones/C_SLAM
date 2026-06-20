@@ -4,11 +4,11 @@
 #include <assert.h>
 
 // Direct local inclusion matching your pathing structures
-#include "tensor.h"
-#include "layer.h"
-#include "dataset.h"
-#include "network.h"
-#include "trainer.h"
+#include "../libaries/tensor.h"
+#include "../libaries/layer.h"
+#include "../libaries/dataset.h"
+#include "../libaries/network.h"
+#include "../libaries/trainer.h"
 
 // Helper function to build automated mock datasets using your framework's API
 Dataset* create_test_dataset(int num_samples, int input_dim, int output_dim) {

@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "network.h"
-#include "layer.h"
-#include "tensor.h"
+#include "../libaries/network.h"
+#include "../libaries/layer.h"
+#include "../libaries/tensor.h"
 
 // Helper to print basic tensor metadata and data values
 void print_tensor_summary(const char* label, const Tensor* t) {

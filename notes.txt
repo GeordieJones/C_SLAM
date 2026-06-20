@@ -122,18 +122,18 @@ auto_labeler.h / .c (DONE)
 
 [STARTING NOW]
 
-profiler.h /.c 
+profiler.h /.c (DONE)
     - microsecond linux timers for regesteing quantization overhead and microsecond speed
     - throughput metrics
     - all other metrics such as cpu and gpu heat, work, and loss of quality
     - ram_allocated_mb,active_tracks_count,id_switches
     - full library for getting metrics so test_suite can just call get_<metric>
 
-evaluator .h / .c
+evaluator .h / .c (DONE)
 	- has math for evaluation tracking and mapping quality to be called by test_suite
     
     
-test_suite.h/.c
+test_suite.h/.c (DONE)
     -determisitic input matrices
     -ground truth comparisions
     -latency, jitter, loss, etc. 
@@ -238,33 +238,6 @@ I would like to at the end add someway either in a library call or in the worst 
 
 
 
-Gemini generate datasets that can be used to train:
-
-1. For Autonomous/Mobile Robotics: The Waymo Open Dataset or KITTI
-
-If your platform mimics a drone or a ground vehicle, use these industry gold standards:
-
-    KITTI Vision Benchmark: A classic, highly manageable choice for a custom C loader. It provides synchronized camera images, calibration matrices (intrinsics/extrinsics), and 3D depth frames. It is lightweight enough to download and parse easily.
-
-    Waymo Open Dataset: A vast, modern option containing millions of highly accurate 2D/3D frames, camera calibrations, and tracking IDs across distinct environmental conditions.
-
-2. For General/Indoor Scenes: NYU Depth V2 or SUN RGB-D
-
-If you are deploying an indoor robot, a robotic arm, or navigating standard rooms:
-
-    NYU Depth V2: Contains thousands of video sequences of indoor scenes recorded by RGB and Depth cameras, paired with pre-baked ground truth depth data.
-
-    SUN RGB-D: A comprehensive indoor benchmark providing spatial images with detailed 3D bounding box layouts.
-
-3. For General Objects: Google Open Images V7
-
-    If you just need your network to recognize standard everyday items, Open Images V7 houses over 16 million bounding boxes across 600 structural classes. It can be downloaded in partial fragments so you don't have to pull down the massive 500+ GB full set.
-
-
-
-
-
-
 Paper 1 guide:
 
 Figure 1: Latency Breakdown Stacked Bar Chart * Metrics needed: Microsecond timers (nn_inference_us, octree_raycast_us, scene_graph_us) plotted across your 4 target edge GPUs. This proves exactly which modules scale best on tighter hardware.
@@ -331,3 +304,69 @@ centroid error - magnitude of distance from predicted to real
 
 delta mean average precision - average precision change as model self learns
 Quantization loss - loss from HAL optimizations
+
+
+
+
+
+gcc -Wall -Wextra -O2 \
+    test_evaluator.c \
+    evaluator.c \
+    -I. \
+    -I../../computer_vision/libraries \
+    -lm \
+    -o test_evaluator
+
+
+
+gcc -Wall -Wextra -O2 \
+    test_profiler.c \
+    profiler.c \
+    -I. \
+    -lm \
+    -o test_profiler
+
+
+gcc -Wall -Wextra -O2 \
+    test_test_suite.c \
+    test_suite.c \
+    evaluator.c \
+    profiler.c \
+    -I. \
+    -I../../computer_vision/libraries \
+    -lm \
+    -o test_test_suite
+
+
+
+
+
+
+
+
+
+Gemini generate datasets that can be used to train:
+
+1. For Autonomous/Mobile Robotics: The Waymo Open Dataset or KITTI
+
+If your platform mimics a drone or a ground vehicle, use these industry gold standards:
+
+    KITTI Vision Benchmark: A classic, highly manageable choice for a custom C loader. It provides synchronized camera images, calibration matrices (intrinsics/extrinsics), and 3D depth frames. It is lightweight enough to download and parse easily.
+
+    Waymo Open Dataset: A vast, modern option containing millions of highly accurate 2D/3D frames, camera calibrations, and tracking IDs across distinct environmental conditions.
+
+2. For General/Indoor Scenes: NYU Depth V2 or SUN RGB-D
+
+If you are deploying an indoor robot, a robotic arm, or navigating standard rooms:
+
+    NYU Depth V2: Contains thousands of video sequences of indoor scenes recorded by RGB and Depth cameras, paired with pre-baked ground truth depth data.
+
+    SUN RGB-D: A comprehensive indoor benchmark providing spatial images with detailed 3D bounding box layouts.
+
+3. For General Objects: Google Open Images V7
+
+    If you just need your network to recognize standard everyday items, Open Images V7 houses over 16 million bounding boxes across 600 structural classes. It can be downloaded in partial fragments so you don't have to pull down the massive 500+ GB full set.
+
+
+
+

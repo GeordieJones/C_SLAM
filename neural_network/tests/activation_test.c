@@ -3,8 +3,8 @@
 #include <math.h>
 #include <assert.h>
 
-#include "tensor.h"
-#include "activation.h"
+#include "../libaries/tensor.h"
+#include "../libaries/activation.h"
 
 // Helper function to print tensors nicely during testing
 void print_test_tensor(const char* name, const Tensor* t) {

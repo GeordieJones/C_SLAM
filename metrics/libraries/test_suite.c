@@ -1,8 +1,12 @@
 #include "test_suite.h"
+#include "profiler.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
+
+#include "../../computer_vision/libraries/raycasting.h"
 
 static FILE* g_dataset_manifest_file = NULL;
 static char g_dataset_root_dir[256]  = {0};
@@ -88,6 +92,11 @@ void test_suite_shutdown(void) {
 void test_suite_evaluate_frame(uint32_t frame_idx, const OctreeNode* active_root, const OctreeNode* gt_root, const SceneGraph* scene_graph){
     extern int g_is_harness_initialized;
     if (!g_is_harness_initialized) return;
+    extern uint32_t g_raycast_total_voxels;
+    extern uint32_t g_raycast_static_skipped;
+
+    //forward decleration for the compiler
+    int dataset_parser_get_ground_truth_only(uint32_t frame_idx, GTObject* gt_array, uint32_t* count);
 
 
     GTObject frame_ground_truth[128];

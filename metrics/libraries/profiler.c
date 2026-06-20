@@ -3,13 +3,14 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "profiler.h"
 
 #define MAX_PROFILE_NODES 2048
 
 
-static FILE* csv_file = NULL;
+FILE* g_csv_file = NULL;
 static SystemMetrics g_metrics = {0};
 
 static ProfileNode g_node_pool[MAX_PROFILE_NODES];
@@ -21,20 +22,20 @@ static ProfileNode* g_current_node = NULL;
 
 
 bool profiler_init(const char* csv_output_path) {
-    csv_file = fopen(csv_output_path, "w");
-    if (!csv_file) {
+    g_csv_file = fopen(csv_output_path, "w");
+    if (!g_csv_file) {
         return false;
     }
     
     //original header can change based on metrics used
-    fprintf(csv_file, "frame_time_us,nn_inference_us,id_switches,gpu_wattage,function_tree\n");
+    fprintf(g_csv_file, "frame_time_us,nn_inference_us,id_switches,gpu_wattage,function_tree\n");
     return true;
 }
 
 
 
 
-void __attribute__((no_instrument_function__)) profiler_clear_frame(void) {
+void __attribute__((__no_instrument_function__)) profiler_clear_frame(void) {
     g_node_pool_index = 0;
     
     g_root_node = &g_node_pool[g_node_pool_index++];
@@ -59,7 +60,7 @@ void __attribute__((no_instrument_function__)) profiler_clear_frame(void) {
 
 
 
-static void __attribute__((no_instrument_function__)) serialize_tree_string(ProfileNode* node, char* buffer, size_t max_len) {
+static void __attribute__((__no_instrument_function__)) serialize_tree_string(ProfileNode* node, char* buffer, size_t max_len) {
     if (!node) return;
     
     char node_info[256];
@@ -81,7 +82,7 @@ static void __attribute__((no_instrument_function__)) serialize_tree_string(Prof
 
 
 
-void __attribute__((no_instrument_function__)) profiler_write_frame_csv(void) {
+void __attribute__((__no_instrument_function__)) profiler_write_frame_csv(void) {
     if (!g_csv_file || !g_root_node) return;
 
     uint64_t frame_end = profiler_get_time_us();
@@ -117,7 +118,7 @@ void __attribute__((no_instrument_function__)) profiler_write_frame_csv(void) {
 
 
 
-void __attribute__((no_instrument_function__)) profiler_shutdown(void) {
+void __attribute__((__no_instrument_function__)) profiler_shutdown(void) {
     if (g_csv_file != NULL) {
         fflush(g_csv_file);
         
@@ -136,7 +137,7 @@ void __attribute__((no_instrument_function__)) profiler_shutdown(void) {
 
 
 
-void __attribute__((no_instrument_function__)) profiler_set_metric(const SystemMetrics* source_metrics) {
+void __attribute__((__no_instrument_function__)) profiler_set_metric(const SystemMetrics* source_metrics) {
     if (!source_metrics) return;
 
     g_metrics.nn_inference_us   = source_metrics->nn_inference_us;
@@ -174,7 +175,7 @@ void __attribute__((no_instrument_function__)) profiler_set_metric(const SystemM
 
 
 
-void __attribute__((no_instrument_function__)) profiler_update_tracking_metrics(uint32_t active_tracks, uint32_t id_switches, uint32_t frags, float loc_err) {
+void __attribute__((__no_instrument_function__)) profiler_update_tracking_metrics(uint32_t active_tracks, uint32_t id_switches, uint32_t frags, float loc_err) {
     g_metrics.active_tracks_count       = active_tracks;
     g_metrics.id_switches               = id_switches;
     g_metrics.fragmentations            = frags;
@@ -183,7 +184,7 @@ void __attribute__((no_instrument_function__)) profiler_update_tracking_metrics(
 
 
 
-void __attribute__((no_instrument_function__)) profiler_update_voxel_metrics(float skip_ratio, float convergence, float divergence) {
+void __attribute__((__no_instrument_function__)) profiler_update_voxel_metrics(float skip_ratio, float convergence, float divergence) {
     g_metrics.voxel_update_skip_ratio = skip_ratio;
     g_metrics.map_convergence_rate    = convergence;
     g_metrics.voxel_divergence_error   = divergence;
@@ -191,7 +192,7 @@ void __attribute__((no_instrument_function__)) profiler_update_voxel_metrics(flo
 
 
 
-void __attribute__((no_instrument_function__)) profiler_track_malloc(size_t bytes) {
+void __attribute__((__no_instrument_function__)) profiler_track_malloc(size_t bytes) {
     double mb = (double)bytes / (1024.0 * 1024.0);
 
     g_metrics.ram_allocated_mb += mb;
@@ -203,7 +204,7 @@ void __attribute__((no_instrument_function__)) profiler_track_malloc(size_t byte
 
 
 
-void __attribute__((no_instrument_function__)) profiler_track_free(size_t bytes) {
+void __attribute__((__no_instrument_function__)) profiler_track_free(size_t bytes) {
     double mb = (double)bytes / (1024.0 * 1024.0);
 
     if (mb >= g_metrics.ram_allocated_mb) {

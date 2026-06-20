@@ -1,3 +1,11 @@
+
+------------------------NOTES FOR THIS LIBRARY--------------------
+- need to move over the compilations for the tests and edit there files to the libraries directory
+  now that they are in the test folder
+
+
+
+
 -------------------------PROFILER SYSTEM--------------------------
 
 Notes: Centralized low-overhead telemetry logger providing high-speed
@@ -75,3 +83,34 @@ and updates mapping telemetry logs
 compute_tree_differences  - internal recursive parsing helper; marches down an active octree and a
 ground-truth octree concurrently using dual-tree indexing macros, isolates
 leaf cell state mismatches, and aggregates total geometric divergence distances
+
+
+
+-------------------------TEST HARNESS SUITE------------------------
+
+Notes: Automated deterministic execution framework that drives sequence iteration.
+Orchestrates frame-by-frame data injection, resets telemetry hooks, sequences the
+execution of production pipelines alongside evaluation engines, and triggers downstream
+log serialization.
+
+test_suite_init             - Initializes the test harness environment; allocates data structures,
+                              clears historical trackers, and prepares file streams for loading target
+                              sequences (e.g., KITTI/Waymo) from a system path while factoring in configured
+                              octree node targets. Returns success status.
+
+test_suite_shutdown         - Shuts down the test harness environment; flushes pending tracking files,
+                              clears evaluation buffers, and deallocates memory blocks used by the dataset parser.
+
+test_suite_run_frame        - Executes a single deterministic test cycle for a targeted frame index.
+                              Routinely orchestrates background telemetry counter resets (g_raycast_total_voxels, etc.),
+                              clears the frame's profile node tree, pumps raw sensor data into the production
+                              pipeline, runs tracking/mapping quality evaluations, and serializes the state
+                              to disk via profiler_write_frame_csv.
+
+test_suite_run_sequence     - Runs a complete automated benchmark over a specified frame window (start to
+                              end frame); loops through frames sequentially, executing test_suite_run_frame
+                              for each step, and handles early exit bounds or sensor dropouts gracefully.
+
+
+
+

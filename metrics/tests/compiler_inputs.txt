@@ -1,0 +1,31 @@
+
+gcc -Wall -Wextra -O2 \
+    test_evaluator.c \
+    evaluator.c \
+    -I. \
+    -I../../computer_vision/libraries \
+    -lm \
+    -o test_evaluator
+
+
+
+gcc -Wall -Wextra -O2 \
+    test_profiler.c \
+    profiler.c \
+    -I. \
+    -lm \
+    -o test_profiler
+
+
+gcc -Wall -Wextra -O2 \
+    test_test_suite.c \
+    test_suite.c \
+    evaluator.c \
+    profiler.c \
+    -I. \
+    -I../../computer_vision/libraries \
+    -lm \
+    -o test_test_suite
+
+
+

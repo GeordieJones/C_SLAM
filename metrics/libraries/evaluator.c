@@ -10,7 +10,7 @@
 
 extern uint32_t g_raycast_total_voxels;
 extern uint32_t g_raycast_static_skipped;
-
+OctreeNode* node_pool = NULL;
 
 #if USE_MEMORY_POOL
     extern OctreeNode* node_pool;
@@ -59,7 +59,7 @@ void evaluate_tracking_quality(const TrackedObject* active_objects, uint32_t act
         }
 
         float object_depth = active_objects[i].centroid.z;
-        if (object_depth < 0.1f) object_depth = 1.0f; i
+        if (object_depth < 0.1f) object_depth = 1.0f; 
 
         float dynamic_gate_threshold_m = 0.3f + (object_depth * 0.05f);
 

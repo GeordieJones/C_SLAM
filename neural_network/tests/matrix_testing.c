@@ -1,4 +1,4 @@
-#include "matrix.h"
+#include "../libaries/matrix.h"
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
