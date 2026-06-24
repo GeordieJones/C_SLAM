@@ -1,0 +1,106 @@
+##################################################################
+
+======                   DOCUMENTATION                  ==========
+
+#################################################################
+
+
+------------------------DETECTOR BRIDGE--------------------------
+
+Notes: Translates between raw visual tracking streams from the SLAM
+       sub-system and fixed-dimension tensor formatting blocks required 
+       to pass batch images and targets to a Neural Network.
+
+Issues Resolved:
+       1. The 'if (t == 0)' Target Alignment Bug:
+          Originally, input frame indexing tracked tightly alongside 
+          individual targets globally. If an image had multiple labels 
+          or zero labels, image assignments completely went out-of-sync
+          with the batch indexes, skipping and duplicating frames.
+          -> RESOLVED by altering the API design to use an array of 
+             box counts (`box_counts_per_img`). This forces the outer 
+             loop to explicitly control unique image placements, while
+             the inner target loop fills only the exact slice count.
+
+       2. Packed vs. Padded Input Array Handling:
+          Because the target matrix pads empty target slots with 0.0f
+          up to `max_targets_per_img`, breaking early would cause 
+          a lagging pointer index if the inputs were padded structures.
+          -> RESOLVED by determining that the source AutoLabeler loop
+             generates a dense sequentially packed array, meaning
+             `global_box_idx` increments sequentially *only* inside 
+             active insertions, leaving the index perfectly aligned 
+             for the next unique image block upon loop break.
+
+       3. Heap Fragment Crashing / Memory Leaks:
+          Temporary tracking pointers require sequential heap allocation
+          inside pseudo training iterations. If one failed mid-step, it 
+          originally risked system crashes or massive persistent leaks.
+          -> RESOLVED by utilizing a Cascading Guard Condition. If a
+             scratchpad allocation fails, it frees everything initialized
+             up to that exact frame slice and safely aborts the step.
+             All temporary allocations are explicitly freed right before
+             returning the loss to prevent memory bloat over iterations.
+
+------------------------------------------------------------------
+BridgeConfig(struct)    - Configuration container holding batch sizing,
+                          network input dimensions (W, H, C), tracking
+                          loss coefficients, and data augmentation flags.
+
+DetectorBridge(struct)  - Context container holding pre-allocated continuous
+                          tensors (`batch_images` [B, C, H, W] and
+                          `batch_targets` [B, Max_Targets, 6]) to maintain 
+                          a fixed memory footprint during loop execution.
+
+DetectorBridge_make     - Instantiates the bridge tracker context structure
+                          and pre-allocates continuous image and target 
+                          tensor buffers in memory.
+
+DetectorBridge_free     - Safely dismantles sub-tensors and returns core 
+                          heap memory pointers cleanly to the system.
+
+DetectorBridge_prepare_input 
+                        - Low-level resampler loop. Extracts raw camera
+                          frames, handles dynamic spatial downsampling to 
+                          target network dimensions, normalizes pixels to a
+                          [0.0f, 1.0f] fractional scale, and loads them into 
+                          the designated batch index slot.
+
+DetectorBridge_train_step_standard
+                        - Core backpropagation pipeline hook. Requires a 
+                          flat array of image pointers, a flat tightly 
+                          packed array of 2D bounding boxes, and an array 
+                          containing the specific box count per image. 
+                          Normalizes target coordinates, fills target matrix
+                          slices while padding empty slots with 0.0f, casts 
+                          the void* network instance to a concrete Network* type, and executes the optimization update.
+
+DetectorBridge_train_step_pseudo
+                        - Automated sequence interface. Safely builds 
+                          scratchpad frames and arrays using a cascading error
+                          trap, invokes the autoregressive data generator 
+                          (`AutoLabeler_generate_autoregressive_targets`),
+                          passes the sequential components into the standard 
+                          normalization pipeline step, and completely unlinks 
+                          the scratchpad pointers before returning loss.
+                          
+                        
+-------------------------IMAGE HANDLER----------------------------
+
+Diagnostic_dump_raw_rgb - Stream intake hook. Takes raw, uncompressed RGB 
+                          video byte sequences extracted directly from the 
+                          system process pipe (`stdin`) and exports them into 
+                          a standard binary PPM (P6) layout file.
+
+Diagnostic_dump_depth   - Dual-channel intermediate snapshot interface. 
+                          Re-scales normalized input tensor dimensions back into 
+                          an uncompressed grayscale PGM (P5) image layout, 
+                          while simultaneously parsing the network's matrix 
+                          predictions to store a flat space-delimited text map 
+                          of depth float variables.
+
+Diagnostic_dump_tracking - Pipeline completion hook. Captures active spatial metrics 
+                          from the live SLAM system, exporting individual 
+                          identities, tracking states, dynamic velocities, 
+                          movability tracking points, and 3D bounding box coordinates 
+                          straight into a tabular CSV structure.

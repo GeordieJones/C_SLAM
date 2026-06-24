@@ -256,3 +256,20 @@ BoundingBox2D* Image_nonmax_suppression(BoundingBox2D* boxes, int box_count, flo
 
 
 
+//using camera intrinsics with relitive depth estimation to get actual distance
+void Decode_disparity_to_meters(Tensor* disparity_pred, Tensor* dest_meters, CameraIntrinsics intrinsics, float alpha, float beta) {
+    int total_pixels = disparity_pred->total_elements;
+    
+    float virtual_baseline = 1.0f; 
+
+    for (int i = 0; i < total_pixels; i++) {
+        float d = disparity_pred->data[i];
+        
+        float denominator = (alpha * d) + beta;
+        if (denominator < 1e-6f) denominator = 1e-6f; 
+
+        float depth_meters = (intrinsics.fx * virtual_baseline) / denominator;
+        
+        dest_meters->data[i] = depth_meters;
+    }
+}

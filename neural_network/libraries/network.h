@@ -39,7 +39,7 @@ Network* Network_make();
 
 void Network_add_dense(Network* net, Layer* dense_layer);
 
-void Network_add_convolution(Network* net, Layer* convolution_layer);
+void Network_add_convolution(Network* net, Layer* convolution_layer, int out_height, int out_width);
 
 void Network_add_pooling(Network* net, Layer* pooling_layer);
 

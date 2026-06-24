@@ -1,6 +1,7 @@
 #ifndef DATASET_H
 #define DATASET_H
 
+#include <stdint.h>
 #include "tensor.h"
 
 typedef struct {
@@ -31,18 +32,21 @@ void Dataset_normalize(Dataset* self, int is_same); // z score normalization
 
 void Dataset_shuffle(Dataset* self); // use an array of indexs to shuffle instead of shuffling all, needs to shuffle X and Y together to keep mapping
 
-void Dataset_get_batch(Dataset*self, Dataset* batch, int batch_idx, int batch_size);
+void Dataset_set_batch(Dataset*self, Dataset* batch, int batch_idx, int batch_size);
 
 
+int Dataset_read_batch(const char* filename, int batch_idx, int batch_size, Dataset* dest);
 
 //must free the out_train.row_indexs and out_val.row_indexs before the master Dataset
 void Dataset_split(Dataset* self, float train_ratio, Dataset* out_train, Dataset* out_val);
 
 
 
+void Tensor_align_scale_and_shift(Tensor* prediction, Tensor* target, Tensor* dest_aligned);
 
 
 
+uint32_t flip_endian(uint32_t num);
 
 
 #endif

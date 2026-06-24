@@ -117,10 +117,12 @@ auto_labeler.h / .c (DONE)
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 ----------------METRICS/OPTIMIZATION SECTION----------------------
-
+		    Done enough to run
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-[STARTING NOW]
+detector_bridge.h / .c (DONE)
+	- needs to brige the gap between the neural_network and the computer vision pipeline
+	- will take in parameters such as output layers and use conversion functions in image decoders to line the
 
 profiler.h /.c (DONE)
     - microsecond linux timers for regesteing quantization overhead and microsecond speed
@@ -145,7 +147,7 @@ test_suite.h/.c (DONE)
     
     
 
-hardware_hal.h / .c  (this can be done last)
+hardware_hal.h / .c  (this can be done last after everything is trained and working)
     - unference interface
     - conditional compilation and loading 
     - SIMD optimiztion for (NEON / AVX)
@@ -159,9 +161,7 @@ hardware_hal.h / .c  (this can be done last)
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
 
-detector_bridge.h / .c (TODO)
-	- needs to brige the gap between the neural_network and the computer vision pipeline
-	- will take in parameters such as output layers and use conversion functions in image decoders to line the forward process
+forward process
 	- also needs to align backwards when doing the online learning to match output data to the neural_network
 	- should act as the glue for the two libraries
 
@@ -231,9 +231,6 @@ To publish on the concept that "some points do not need to be updated," you must
 
 the finished product should look first be able to train a model to run MiDaS like depth estimation and group points as the same object so that it can then make a 3D map rendering of the visible environment. During this training it should have test functions that are able figure out how much time was spent at each function and write it to a csv so I can see the bottlenecks. Then once finished with the original training it should have a flip switch for live learning which if off it just run its mapping predictions, if on it writes its prediction then after it has scene more of the room it trains itself on what the rest of the room actually looks like. Once this is fully functioning I should have a lot of test and training data to start working on the hardware optimizations.
 
-
-
-I would like to at the end add someway either in a library call or in the worst case manually adding to each function a timer and maybe some other metric tracker and those print to a csv so when training happens or when I am running it it will give me a csv of how much every function was called, how much time it took, how much energy, and maybe some other things that way I can constantly find the biggest bottlenecks and where I need to improve things. 
 
 
 
@@ -370,3 +367,47 @@ If you are deploying an indoor robot, a robotic arm, or navigating standard room
 
 
 
+streaming input will use - (FFmpeg piping raw video bytes over stdin). It provides low overhead and high ease of configuration via the command line (e.g., easy frame rate throttling). not sure if I already implemented it
+
+
+
+
+----------------------------------------------------------
+
+METRICS UPDATE - gemini prompted:
+
+
+
+1. Algorithmic Work (Hardware-Agnostic)
+
+    FLOPs (Floating Point Operations): The total number of additions and multiplications your algorithm performs. For example, you can show that your optimization cuts the required FLOPs of a convolutional layer in half.
+
+    MACs (Multiply-Accumulate Operations): Crucial for neural networks, as one MAC represents a weight multiplication and an accumulation (y=w⋅x+b).
+
+    Algorithmic Complexity / Operation Counts: Counting the literal number of times high-cost functions (like your Tensor_lazy_transpose) or specific code branches are hit per unit of data.
+
+2. Hardware Efficiency Metrics (Normalized)
+
+ to show how well code exploits the hardware it is given, use metrics that normalize performance against the hardware's theoretical limits.
+
+    Arithmetic Intensity (Roofline Model): This is the holy grail for systems papers. It measures FLOPs performed per byte of memory accessed (FLOPs/Byte). It proves whether your code is bottlenecked by the CPU's compute speed or by the RAM's memory bandwidth.
+
+    Percentage of Peak Performance: If your processor has a theoretical peak of 100 GFLOPs, and your code achieves 85 GFLOPs, you are running at 85% peak efficiency. This proves "good code" regardless of whether the processor is slow or fast.
+
+    Instructions Per Cycle (IPC): Measures how many instructions the CPU core executes on every clock cycle. High IPC means minimal stalling; low IPC means your code is constantly waiting on cache misses or branch mispredictions.
+
+3. Memory & Cache Subsystem Metrics
+
+    LLC (Last Level Cache) Miss Rate: The percentage of times the CPU had to look past the fast L1/L2/L3 caches and fetch data from slow system RAM. Optimized code has a very low cache miss rate due to spatial and temporal locality.
+
+    Memory Footprint / Memory Bandwidth Utilization: The peak megabytes allocated (peak_ram_mb which you already track!) and how close your code gets to saturating the hardware's maximum memory transfer speed (GB/s).
+
+How to Structure This in Your Paper
+
+To make your paper academically rigorous, use a three-tier evaluation strategy:
+
+    The Agnostic Baseline: Prove your optimization works on paper by showing a reduction in FLOPs or Memory Access Counts.
+
+    The System Efficiency: Prove your code is well-written by showing an improvement in IPC, a reduction in Cache Misses, or where it sits on a Roofline Model.
+
+    The Real-World Impact (Time): Finally, report Wall-Clock Time, but only when comparing your optimized code against the baseline code on the exact same machine.

@@ -2,7 +2,7 @@
 ##################################################################
 
 ======                   DOCUMENTATION                  ==========
-
+			 neural network
 ##################################################################
 
 
@@ -178,7 +178,11 @@ Dataset_normalize    - applies standard Z-score normalization to the dataset
 Dataset_shuffle      - randomizes the index map array to shuffle inputs 
                        and targets together safely
 
-Dataset_get_batch    - extracts a specific sliced window of data into a 
+Dataset_read_batch   - reads shuffled data from python scripts and then given
+                       a current batch_idx and size returns a batch of that 
+                       size starting from the batch idx.
+
+Dataset_set_batch    - extracts a specific sliced window of data into a 
                        provided batch dataset struct
 
 Dataset_split        - divides a master dataset into distinct training and 

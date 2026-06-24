@@ -167,7 +167,7 @@ Dataset* Dataset_read_csv(const char* filename, int* label_cols, int num_labels,
 
 
 
-static uint32_t flip_endian(uint32_t num ){
+uint32_t flip_endian(uint32_t num ){
     return((num >> 24) & 0xff) |
           ((num << 8) & 0xff0000) |
           ((num >> 8) & 0xff00)|
@@ -194,12 +194,12 @@ Dataset* Dataset_read_mnist(const char* image_filename, const char* label_filena
     uint32_t rows, cols;
 
     if(
-    fread(&magic_img, sizeof(uint32_t), 1, img_file) != 1||
-    fread(&num_imgs, sizeof(uint32_t), 1, img_file)  != 1||
-    fread(&rows, sizeof(uint32_t), 1, img_file)      != 1||
-    fread(&cols, sizeof(uint32_t), 1, img_file)      != 1||
-    fread(&magic_lbl, sizeof(uint32_t), 1, img_file) != 1||
-    fread(&num_lbls, sizeof(uint32_t), 1, img_file)  != 1
+    fread(&magic_img, sizeof(uint32_t), 1, lbl_file) != 1||
+    fread(&num_imgs, sizeof(uint32_t), 1, lbl_file)  != 1||
+    fread(&rows, sizeof(uint32_t), 1, lbl_file)      != 1||
+    fread(&cols, sizeof(uint32_t), 1, lbl_file)      != 1||
+    fread(&magic_lbl, sizeof(uint32_t), 1, lbl_file) != 1||
+    fread(&num_lbls, sizeof(uint32_t), 1, lbl_file)  != 1
     ){
         fprintf(stderr, "ERROR:failed to read mnist header values metadata \n");
         fclose(img_file);
@@ -288,11 +288,233 @@ Dataset* Dataset_read_mnist(const char* image_filename, const char* label_filena
 
 
 
+
+/*
+int Dataset_read_batch(const char* filename, int batch_idx, int batch_size, Dataset* dest) {
+    
+    if (!dest || !dest->x || !dest->y) {
+        fprintf(stderr, "ERROR: Destination dataset or internal tensors are null.\n");
+        return 0; 
+    }
+
+    FILE* file = fopen(filename, "rb");
+    if (!file) {
+        fprintf(stderr, "ERROR: Could not open dataset file %s\n", filename);
+        return 0;
+    }
+
+    uint32_t magic, num_samples, channels, height, width;
+    size_t header_size = 5 * sizeof(uint32_t); // 20 bytes
+    
+    if (fread(&magic, sizeof(uint32_t), 1, file) != 1 ||
+        fread(&num_samples, sizeof(uint32_t), 1, file) != 1 ||
+        fread(&channels, sizeof(uint32_t), 1, file) != 1 ||
+        fread(&height, sizeof(uint32_t), 1, file) != 1 ||
+        fread(&width, sizeof(uint32_t), 1, file) != 1) {
+        fprintf(stderr, "ERROR: Failed to read binary data headers.\n");
+        fclose(file);
+        return 0;
+    }
+
+    magic = flip_endian(magic);
+    num_samples = flip_endian(num_samples);
+    channels = flip_endian(channels);
+    height = flip_endian(height);
+    width = flip_endian(width);
+
+    if (magic != 2060) {
+        fprintf(stderr, "ERROR: Invalid dataset magic signature mismatch.\n");
+        fclose(file);
+        return 0;
+    }
+
+    int start_sample = batch_idx * batch_size;
+    if (start_sample >= (int)num_samples) {
+        fprintf(stderr, "ERROR: Requested batch_idx %d out of bounds.\n", batch_idx);
+        fclose(file);
+        return 0;
+    }
+    
+    int current_batch_size = batch_size;
+    if (start_sample + current_batch_size > (int)num_samples) {
+        current_batch_size = (int)num_samples - start_sample; // Truncate last batch
+    }
+
+    int total_features_per_sample = channels * height * width;
+    int total_labels_per_sample = dest->y->shape[1];
+
+    size_t element_size = sizeof(float);
+    size_t sample_bytes = total_features_per_sample * element_size;
+    size_t label_bytes  = total_labels_per_sample * element_size;
+
+    long offset_x = (long)(header_size + ((size_t)start_sample * sample_bytes));
+    if (fseek(file, offset_x, SEEK_SET) != 0) {
+        fprintf(stderr, "ERROR: Failed to seek to Feature batch position.\n");
+        goto cleanup_error;
+    }
+    size_t x_elements_read = fread(dest->x->data, element_size, current_batch_size * total_features_per_sample, file);
+
+    size_t total_features_block_bytes = (size_t)num_samples * sample_bytes;
+    long offset_y = (long)(header_size + total_features_block_bytes + ((size_t)start_sample * label_bytes));
+    if (fseek(file, offset_y, SEEK_SET) != 0) {
+        fprintf(stderr, "ERROR: Failed to seek to Label batch position.\n");
+        goto cleanup_error;
+    }
+    size_t y_elements_read = fread(dest->y->data, element_size, current_batch_size * total_labels_per_sample, file);
+
+    if (x_elements_read != (size_t)(current_batch_size * total_features_per_sample) || 
+        y_elements_read != (size_t)(current_batch_size * total_labels_per_sample)) {
+        fprintf(stderr, "ERROR: Structural streaming truncation or broken batch records encountered.\n");
+        goto cleanup_error;
+    }
+
+    fclose(file);
+
+    dest->x->shape[0] = current_batch_size;
+    dest->y->shape[0] = current_batch_size;
+
+    return current_batch_size;
+
+    cleanup_error:
+        fclose(file);
+        return 0;
+}*/
+
+
+
+int Dataset_read_batch(const char* filename, int batch_idx, int batch_size, Dataset* dest) {
+    //printf("  [DATA DEBUG] Entering Dataset_read_batch for batch_idx: %d\n", batch_idx);
+    
+    if (!dest || !dest->x || !dest->y) {
+        fprintf(stderr, "  [DATA ERROR] Destination dataset or internal tensors are null.\n");
+        return 0; 
+    }
+
+    FILE* file = fopen(filename, "rb");
+    if (!file) {
+        fprintf(stderr, "  [DATA ERROR] Could not open dataset file %s\n", filename);
+        return 0;
+    }
+
+    uint32_t magic, num_samples, channels, height, width;
+    size_t header_size = 5 * sizeof(uint32_t); // 20 bytes
+    
+    if (fread(&magic, sizeof(uint32_t), 1, file) != 1 ||
+        fread(&num_samples, sizeof(uint32_t), 1, file) != 1 ||
+        fread(&channels, sizeof(uint32_t), 1, file) != 1 ||
+        fread(&height, sizeof(uint32_t), 1, file) != 1 ||
+        fread(&width, sizeof(uint32_t), 1, file) != 1) {
+        fprintf(stderr, "  [DATA ERROR] Failed to read binary data headers.\n");
+        fclose(file);
+        return 0;
+    }
+
+    magic = flip_endian(magic);
+    num_samples = flip_endian(num_samples);
+    channels = flip_endian(channels);
+    height = flip_endian(height);
+    width = flip_endian(width);
+
+    printf("  [DATA DEBUG] Parsed Headers inside loader -> Samples: %u, Channels: %u, HxW: %ux%u\n", 
+           num_samples, channels, height, width);
+
+    if (magic != 2060) {
+        fprintf(stderr, "  [DATA ERROR] Invalid dataset magic signature mismatch: %u (Expected 2060)\n", magic);
+        fclose(file);
+        return 0;
+    }
+
+    int start_sample = batch_idx * batch_size;
+    printf("  [DATA DEBUG] start_sample: %d | total num_samples: %u\n", start_sample, num_samples);
+    if (start_sample >= (int)num_samples) {
+        fprintf(stderr, "  [DATA ERROR] Requested batch_idx %d out of bounds.\n", batch_idx);
+        fclose(file);
+        return 0;
+    }
+    
+    int current_batch_size = batch_size;
+    if (start_sample + current_batch_size > (int)num_samples) {
+        current_batch_size = (int)num_samples - start_sample; 
+        printf("  [DATA DEBUG] Truncating trailing edge batch size down to: %d\n", current_batch_size);
+    }
+
+    int total_features_per_sample = channels * height * width;
+    int total_labels_per_sample = dest->y->shape[1]; 
+
+    size_t element_size = sizeof(float);
+    size_t sample_bytes = total_features_per_sample * element_size;
+    size_t label_bytes  = total_labels_per_sample * element_size;
+
+    printf("  [DATA DEBUG] Features/sample: %d (%zu bytes) | Labels/sample: %d (%zu bytes)\n", 
+           total_features_per_sample, sample_bytes, total_labels_per_sample, label_bytes);
+
+    // 1. Feature reading diagnostics
+    long offset_x = (long)(header_size + ((size_t)start_sample * sample_bytes));
+    //printf("  [DATA DEBUG] Seeking to Feature position. Offset_X: %ld\n", offset_x);
+    
+    if (fseek(file, offset_x, SEEK_SET) != 0) {
+        fprintf(stderr, "  [DATA ERROR] Failed to seek to Feature batch position.\n");
+        goto cleanup_error;
+    }
+    
+    size_t x_elements_to_read = (size_t)current_batch_size * total_features_per_sample;
+    printf("  [DATA DEBUG] Reading features. Destination buffer pointer: %p, Elements to read: %zu\n", 
+           (void*)dest->x->data, x_elements_to_read);
+    
+    size_t x_elements_read = fread(dest->x->data, element_size, x_elements_to_read, file);
+    printf("  [DATA DEBUG] Features read successfully: %zu elements\n", x_elements_read);
+
+    // 2. Label reading diagnostics
+    size_t total_features_block_bytes = (size_t)num_samples * sample_bytes;
+    long offset_y = (long)(header_size + total_features_block_bytes + ((size_t)start_sample * label_bytes));
+    printf("  [DATA DEBUG] Seeking to Label position. Total feature block size: %zu, Offset_Y: %ld\n", 
+           total_features_block_bytes, offset_y);
+    
+    if (fseek(file, offset_y, SEEK_SET) != 0) {
+        fprintf(stderr, "  [DATA ERROR] Failed to seek to Label batch position.\n");
+        goto cleanup_error;
+    }
+    
+    size_t y_elements_to_read = (size_t)current_batch_size * total_labels_per_sample;
+    printf("  [DATA DEBUG] Reading labels. Destination buffer pointer: %p, Elements to read: %zu\n", 
+           (void*)dest->y->data, y_elements_to_read);
+    
+    size_t y_elements_read = fread(dest->y->data, element_size, y_elements_to_read, file);
+    printf("  [DATA DEBUG] Labels read successfully: %zu elements\n", y_elements_read);
+
+    if (x_elements_read != x_elements_to_read || y_elements_read != y_elements_to_read) {
+        fprintf(stderr, "  [DATA ERROR] Structural streaming truncation or broken batch records encountered.\n");
+        fprintf(stderr, "  [DATA ERROR] Expected X: %zu (Got: %zu) | Expected Y: %zu (Got: %zu)\n", 
+                x_elements_to_read, x_elements_read, y_elements_to_read, y_elements_read);
+        goto cleanup_error;
+    }
+
+    fclose(file);
+
+    dest->x->shape[0] = current_batch_size;
+    dest->y->shape[0] = current_batch_size;
+
+    //printf("  [DATA DEBUG] Exiting Dataset_read_batch successfully. Returning size: %d\n", current_batch_size);
+    return current_batch_size;
+
+    cleanup_error:
+        printf("  [DATA DEBUG] Branching into error cleanup routine.\n");
+        fclose(file);
+        return 0;
+}
+
+
+
+
+
+
+
 void Dataset_read_video(Tensor* dest, unsigned char* raw_frame_bytes, int src_width, int src_height){
     int dims[2] = {src_height, src_width};
     Tensor* gray = Tensor_make(2, dims);
     img_rgb_to_greyscale(raw_frame_bytes, gray, src_width, src_height);
     Tensor_copy(dest, gray);
+    Tensor_free(gray);
 }
 
 
@@ -538,7 +760,7 @@ void Dataset_shuffle(Dataset* self){
 }
 
 
-void Dataset_get_batch(Dataset* self, Dataset* batch, int batch_idx, int batch_size){
+void Dataset_set_batch(Dataset* self, Dataset* batch, int batch_idx, int batch_size){
     
     int x_samp = 1;
     for(int d = 1; d < self->x->ndim; d++) {
@@ -602,8 +824,45 @@ void Dataset_split(Dataset* self, float train_ratio, Dataset* out_train, Dataset
 
 
 
+//MiDaS-style least-squares alignment
+void Tensor_align_scale_and_shift(Tensor* prediction, Tensor* target, Tensor* dest_aligned) {
+    int N = prediction->total_elements;
+    
+    float sum_pred = 0.0f, sum_target = 0.0f;
+    int valid_count = 0;
 
+    for (int i = 0; i < N; i++) {
+        if (target->data[i] > 0.0f) {
+            sum_pred += prediction->data[i];
+            sum_target += target->data[i];
+            valid_count++;
+        }
+    }
 
+    if (valid_count == 0) return;
+
+    float mean_pred = sum_pred / valid_count;
+    float mean_target = sum_target / valid_count;
+
+    float num = 0.0f; 
+    float den = 0.0f;
+
+    for (int i = 0; i < N; i++) {
+        if (target->data[i] > 0.0f) {
+            float diff_pred = prediction->data[i] - mean_pred;
+            float diff_target = target->data[i] - mean_target;
+            num += diff_pred * diff_target;
+            den += diff_pred * diff_pred;
+        }
+    }
+
+    float s = (den != 0.0f) ? (num / den) : 1.0f;
+    float t = mean_target - s * mean_pred;
+
+    for (int i = 0; i < N; i++) {
+        dest_aligned->data[i] = s * prediction->data[i] + t;
+    }
+}
 
 
 

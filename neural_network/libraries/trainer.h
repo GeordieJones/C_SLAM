@@ -15,6 +15,14 @@ typedef struct{
     int classification_axis;
     const char* save_location;
     int save_frequency;
+
+    //added to account for convolutions
+    int input_height;
+    int input_width;
+    int stride;
+    int padding;
+    int pool_size;
+
 }Hyperparameters;
 
 typedef struct{
@@ -23,14 +31,16 @@ typedef struct{
     int unchanged_counter;
 }Progress;
 
-
-void Trainer_train(Network* net, Dataset* data, Hyperparameters* params, Progress* state);
+//assumes that the network has already been made along with the data
+//void Trainer_train(Network* net, Dataset* data, Hyperparameters* params, Progress* state);
+//batch version 
+void Trainer_train(Network* net, const char* dataset_path, Hyperparameters* params, Progress* progress, int last_dataset_point);
 
 void Trainer_save_model(Network* net, Hyperparameters* params, Progress* progress);
 
 void Trainer_load_model(Network* net, Hyperparameters* params, Progress* progress);
 
 //assumes data is already split from the training data
-float Trainer_evaluate(Network* net, Dataset* data, Hyperparameters params);
+float Trainer_evaluate(Network* net, char* dataset_path, int val_start_sample, int val_samples, Hyperparameters params);
 
 #endif

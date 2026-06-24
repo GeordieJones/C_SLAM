@@ -114,10 +114,10 @@ void col2img(const Tensor* input,int batch_idx, int channels, int height, int wi
                         int src_idx = row_idx * cols + col_idx;
 
                         if(!(input_x < 0 || input_x >= width)){
-                            int dest_idx =  (batch_idx * input->strides[0]) +
+                            int dest_idx =  (batch_idx * output->strides[0]) +
                                             (c * input->strides[1]) +
-                                            (input_y * input->strides[2]) +
-                                            (input_x * input->strides[3]);
+                                            (input_y * output->strides[2]) +
+                                            (input_x * output->strides[3]);
                             output->data[dest_idx] += input->data[src_idx];
                         }
                         row_idx++;
@@ -171,6 +171,8 @@ Layer* Layer_make_convolution(int in_channels, int out_channels, int in_height, 
     Layer* layer = (Layer*)calloc(1, sizeof(Layer));
     if (!layer) return NULL;
 
+    layer->input_dim = in_channels;
+
     layer->kernel_size = kernel_size;
     layer->stride = stride;
     layer->padding = padding;
@@ -215,6 +217,8 @@ Layer* Layer_make_convolution(int in_channels, int out_channels, int in_height, 
 Layer* Layer_make_pooling(int in_channels, int in_height, int in_width, int pool_size, int stride) {
     Layer* layer = (Layer*)calloc(1, sizeof(Layer));
     if (!layer) return NULL;
+
+    layer->input_dim = in_channels;
 
     layer->pool_size = pool_size;
     layer->stride = stride;
@@ -376,6 +380,8 @@ void ConvolutionLayer_forward(Layer* layer, const Tensor* input, Tensor* output)
     if (layer->z_cache == NULL || layer->z_cache->shape[0] != batch_size) {
         if (layer->z_cache) Tensor_free(layer->z_cache);
         if (layer->a_cache) Tensor_free(layer->a_cache);
+        if (layer->x_cache) Tensor_free(layer->x_cache);
+        if (layer->inputs_cache) Tensor_free(layer->inputs_cache);
 
         int z_dims[4] = {batch_size, layer->output_channels, out_height, out_width};
         layer->z_cache = Tensor_make(4, z_dims);
@@ -384,6 +390,8 @@ void ConvolutionLayer_forward(Layer* layer, const Tensor* input, Tensor* output)
         int x_dims[4] = {batch_size, in_channels, in_height, in_width};
         layer->x_cache = Tensor_make(4, x_dims);
     
+        int cache_shape[2] = {in_channels * layer->kernel_size * layer->kernel_size, out_height * out_width};
+        layer->inputs_cache = Tensor_make(2, cache_shape);
     }
 
     Tensor_copy(input, layer->x_cache);
@@ -444,7 +452,7 @@ void ConvolutionLayer_forward(Layer* layer, const Tensor* input, Tensor* output)
 
 
 
-
+/*
 void ConvolutionLayer_backward(Layer* layer, const Tensor* output_gradient, Tensor* input_gradient) {
     int batch_size = output_gradient->shape[0];
     int out_channels = output_gradient->shape[1];
@@ -522,13 +530,17 @@ void ConvolutionLayer_backward(Layer* layer, const Tensor* output_gradient, Tens
     weights_2d.strides[1] = layer->weights->strides[1];
 
     // Setup grad_col strictly as a 2D target matrix
+    
+    int grad_col_shape[2] = {flat_kernel_features, out_elements};
+    Tensor* grad_col_tensor = Tensor_make(2, grad_col_shape);
+
     Tensor grad_col;
     grad_col.ndim = 2;
     grad_col.shape[0] = flat_kernel_features;
     grad_col.shape[1] = out_elements;
     grad_col.strides[0] = out_elements;
     grad_col.strides[1] = 1;
-    grad_col.data = (float*)malloc(grad_col.shape[0] * out_elements * sizeof(float));
+    grad_col.data = grad_col_tensor->data;//(float*)malloc(grad_col.shape[0] * out_elements * sizeof(float));
 
 
     for (int b = 0; b < batch_size; b++) {
@@ -562,11 +574,156 @@ void ConvolutionLayer_backward(Layer* layer, const Tensor* output_gradient, Tens
     }
 
   
-    free(grad_col.data);
+    //free(grad_col.data);
+    Tensor_free(grad_col_tensor);
     Tensor_free(dW_batch);
     Tensor_free(dZ);
 }
+*/
 
+void ConvolutionLayer_backward(Layer* layer, const Tensor* output_gradient, Tensor* input_gradient) {
+    printf("\n  [CONV BACKWARD] === Entering Convolution Layer Backward ===\n");
+
+    int batch_size = output_gradient->shape[0];
+    int out_channels = output_gradient->shape[1];
+    int out_height = output_gradient->shape[2];
+    int out_width = output_gradient->shape[3];
+    int out_elements = out_height * out_width;
+
+    int in_channels = layer->x_cache->shape[1];
+    int in_height = layer->x_cache->shape[2];
+    int in_width = layer->x_cache->shape[3];
+    int flat_kernel_features = in_channels * layer->kernel_size * layer->kernel_size;
+
+    printf("  [CONV BACKWARD] Shapes: Batch=%d, InChannels=%d, OutChannels=%d\n", batch_size, in_channels, out_channels);
+    printf("  [CONV BACKWARD] InSpatial=%dx%d | OutSpatial=%dx%d (out_elements=%d)\n", in_height, in_width, out_height, out_width, out_elements);
+    printf("  [CONV BACKWARD] flat_kernel_features calculated: %d\n", flat_kernel_features);
+
+    int dz_dims[4] = {batch_size, out_channels, out_height, out_width};
+    printf("  [CONV BACKWARD] Allocating dZ tensor...\n");
+    Tensor* dZ = Tensor_make(4, dz_dims);
+    printf("  [CONV BACKWARD] dZ Allocated successfully. Total elements: %d\n", dZ->total_elements);
+
+    // 1. Activation Backprop
+    printf("  [CONV BACKWARD] Executing activation derivative (Type: %d)...\n", layer->activation);
+    switch(layer->activation) {
+        case ACTIVATION_NONE:
+            Tensor_copy(output_gradient, dZ);
+            break;
+        case ACTIVATION_RELU:
+            relu_derivative(layer->a_cache, output_gradient, dZ);
+            break;
+        case ACTIVATION_LEAKY_RELU:
+            leaky_relu_derivative(layer->a_cache, output_gradient, dZ);
+            break;
+        case ACTIVATION_SIGMOID:
+            sigmoid_derivative(layer->a_cache, output_gradient, dZ);
+            break;
+        case ACTIVATION_SOFTMAX:
+            Tensor_copy(output_gradient, dZ);
+            break;
+    }
+    printf("  [CONV BACKWARD] Activation derivative applied cleanly.\n");
+
+    printf("  [CONV BACKWARD] Zeroing gradient tracking arrays...\n");
+    Tensor_zero(layer->d_biases);
+    Tensor_zero(layer->d_weights);
+    Tensor_zero(input_gradient);
+
+    int total_spatial_elements = dZ->total_elements;
+    //printf("  [CONV BACKWARD] Accumulating biases. Total spatial iterations: %d\n", total_spatial_elements);
+    for(int i = 0; i < total_spatial_elements; i++) {
+        int oc = (i / out_elements) % out_channels;
+        layer->d_biases->data[oc] += dZ->data[i];
+    }
+    //printf("  [CONV BACKWARD] Biases accumulated.\n");
+
+    // Explicit 2D views for Tensor_matmul compliance
+    Tensor dZ_slice;
+    dZ_slice.ndim = 2;
+    dZ_slice.shape[0] = out_channels;
+    dZ_slice.shape[1] = out_elements;
+    dZ_slice.strides[0] = out_elements;
+    dZ_slice.strides[1] = 1;
+
+    Tensor inputs_cache_2d;
+    inputs_cache_2d.data = layer->inputs_cache->data;
+    inputs_cache_2d.ndim = 2;
+    inputs_cache_2d.shape[0] = flat_kernel_features;
+    inputs_cache_2d.shape[1] = out_elements;
+    inputs_cache_2d.strides[0] = out_elements;
+    inputs_cache_2d.strides[1] = 1;
+
+    int dW_shape[2] = {out_channels, flat_kernel_features};
+    //printf("  [CONV BACKWARD] Allocating dW_batch tensor (Shape: %dx%d)...\n", out_channels, flat_kernel_features);
+    Tensor* dW_batch = Tensor_make(2, dW_shape);
+
+    Tensor weights_2d;
+    weights_2d.data = layer->weights->data;
+    weights_2d.ndim = 2;
+    weights_2d.shape[0] = layer->weights->shape[0];
+    weights_2d.shape[1] = layer->weights->shape[1];
+    weights_2d.strides[0] = layer->weights->strides[0];
+    weights_2d.strides[1] = layer->weights->strides[1];
+
+    //printf("  [CONV BACKWARD] Allocating grad_col_tensor framework block...\n");
+    int grad_col_shape[2] = {flat_kernel_features, out_elements};
+    Tensor* grad_col_tensor = Tensor_make(2, grad_col_shape);
+
+    Tensor grad_col;
+    grad_col.ndim = 2;
+    grad_col.shape[0] = flat_kernel_features;
+    grad_col.shape[1] = out_elements;
+    grad_col.strides[0] = out_elements;
+    grad_col.strides[1] = 1;
+    grad_col.data = grad_col_tensor->data;
+
+    printf("  [CONV BACKWARD] Entering batch loop execution (Total runs: %d)...\n", batch_size);
+
+    // Add this check right before the batch loop in ConvolutionLayer_backward:
+    int expected_input_elements = batch_size * in_channels * in_height * in_width;
+    if (input_gradient->total_elements < expected_input_elements) {
+        printf("\n[CRITICAL SHAPE MISMATCH] input_gradient has %d elements, but col2img expects %d!\n",
+               input_gradient->total_elements, expected_input_elements);
+        printf("Check Layer 3 output dimension compilation calculations.\n");
+        exit(1);
+    }
+
+
+    for (int b = 0; b < batch_size; b++) {
+        //printf("    [BATCH LOOP %d] Executing img2col...\n", b);
+        img2col(layer->x_cache, b, in_channels, in_height, in_width, layer->kernel_size, layer->stride, layer->padding, layer->inputs_cache);
+
+        int batch_offset = b * out_channels * out_elements;
+        dZ_slice.data = &dZ->data[batch_offset];
+
+        //printf("    [BATCH LOOP %d] Running dW weight-gradient Tensor_matmul...\n", b);
+        Tensor_lazy_transpose(&inputs_cache_2d, 0, 1);
+        Tensor_matmul(&dZ_slice, &inputs_cache_2d, dW_batch);
+        Tensor_lazy_transpose(&inputs_cache_2d, 0, 1);
+
+        //printf("    [BATCH LOOP %d] Accumulating dW_batch into global layer d_weights...\n", b);
+        for(int i = 0; i < layer->d_weights->total_elements; i++) {
+            layer->d_weights->data[i] += dW_batch->data[i];
+        }
+
+        //printf("    [BATCH LOOP %d] Running grad_col Tensor_matmul...\n", b);
+        Tensor_lazy_transpose(&weights_2d, 0, 1);
+        Tensor_matmul(&weights_2d, &dZ_slice, &grad_col);
+        Tensor_lazy_transpose(&weights_2d, 0, 1);
+
+        //printf("    [BATCH LOOP %d] Running col2img into input_gradient output...\n", b);
+        col2img(&grad_col, b, in_channels, in_height, in_width, layer->kernel_size, layer->stride, layer->padding, input_gradient);
+    }
+    printf("  [CONV BACKWARD] Batch loop finished completely.\n");
+
+    //printf("  [CONV BACKWARD] Cleaning up tracking structures...\n");
+    Tensor_free(grad_col_tensor);
+    Tensor_free(dW_batch);
+    Tensor_free(dZ);
+
+    printf("  [CONV BACKWARD] === Exiting Convolution Layer Backward Cleanly ===\n");
+}
 
 
 

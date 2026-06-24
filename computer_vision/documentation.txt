@@ -258,3 +258,12 @@ AutoLabeler_generate_pseudo_targets - parses valid histories to harvest paired
 AutoLabeler_extract_raw_historical_points - back-projects localized depth map 
                        pixel matrices using camera focal properties to return a 
                        freshly un-downsampled 3D local frame point array block.
+
+
+AutoLabeler_export_causal_scene_dataset - creates a autoregressive training dataset
+                                          where each sequence teaches the model to predict
+                                          the final fully mapped scene so that now the
+                                          orginal camera will be able to map closure on
+                                          objects
+
+

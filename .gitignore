@@ -1,0 +1,6 @@
+Python_files/filtered_data/
+Python_files/raw_data/
+
+programs/libraries/models/*.nn
+programs/libraries/*.o
+**/.Makefile.swp

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "profiler.h"
 
@@ -28,10 +29,14 @@ bool profiler_init(const char* csv_output_path) {
     }
     
     //original header can change based on metrics used
-    fprintf(g_csv_file, "frame_time_us,nn_inference_us,id_switches,gpu_wattage,function_tree\n");
+    fprintf(g_csv_file, 
+        "nn_inference_us,octree_raycast_us,scene_graph_us,total_frame_us,jitter_us,fps,"
+        "ram_allocated_mb,peak_ram_mb,active_tracks_count,id_switches,fragmentations,"
+        "avg_localization_error_cm,voxel_update_skip_ratio,map_convergence_rate,"
+        "voxel_divergence_error,gpu_wattage,cpu_temperature_c,gpu_temperature_c,function_tree\n"
+    );
     return true;
 }
-
 
 
 
@@ -215,6 +220,74 @@ void __attribute__((__no_instrument_function__)) profiler_track_free(size_t byte
     
     // Peak memory only goes up do not subtract from it
 }
+
+
+
+uint64_t __attribute__((__no_instrument_function__)) profiler_get_time_us(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ((uint64_t)ts.tv_sec * 1000000ULL) + ((uint64_t)ts.tv_nsec / 1000ULL);
+}
+
+
+
+
+#if defined(__GNUC__) || defined(__clang__)
+
+void __attribute__((__no_instrument_function__)) __cyg_profile_func_enter(void *this_fn, void *call_site) {
+    (void)call_site;
+    if (!g_csv_file || g_node_pool_index >= MAX_PROFILE_NODES || !g_current_node) return;
+
+    ProfileNode* child = &g_node_pool[g_node_pool_index++];
+    
+    // Provide safe hex-fallback address tag for string generation
+    char* name_buf = malloc(32);
+    snprintf(name_buf, 32, "func_%p", this_fn);
+    
+    child->function_name = name_buf;
+    child->start_time_us = profiler_get_time_us();
+    child->total_self_time_us = 0;
+    child->total_child_time_us = 0;
+    child->call_count = 1;
+    child->parent = g_current_node;
+    child->first_child = NULL;
+    child->next_sibling = NULL;
+
+    if (!g_current_node->first_child) {
+        g_current_node->first_child = child;
+    } else {
+        ProfileNode* sibling = g_current_node->first_child;
+        while (sibling->next_sibling) {
+            sibling = sibling->next_sibling;
+        }
+        sibling->next_sibling = child;
+    }
+    g_current_node = child;
+}
+
+void __attribute__((__no_instrument_function__)) __cyg_profile_func_exit(void *this_fn, void *call_site) {
+    (void)this_fn; (void)call_site;
+    if (!g_current_node || g_current_node == g_root_node) return;
+
+    uint64_t execution_duration = profiler_get_time_us() - g_current_node->start_time_us;
+    g_current_node->total_self_time_us = execution_duration - g_current_node->total_child_time_us;
+
+    if (g_current_node->parent) {
+        g_current_node->parent->total_child_time_us += execution_duration;
+        g_current_node = g_current_node->parent;
+    }
+}
+#endif
+
+
+
+
+
+
+
+
+
+
 
 
 

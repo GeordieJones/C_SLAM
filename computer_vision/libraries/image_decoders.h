@@ -38,4 +38,7 @@ BoundingBox2D* Image_tensor_to_bounding_boxes(const Tensor* output, float confid
 BoundingBox2D* Image_nonmax_suppression(BoundingBox2D* boxes, int box_count, float iou_threshold, int* out_filtered_count);
 
 
+
+void Decode_disparity_to_meters(Tensor* disparity_pred, Tensor* dest_meters, CameraIntrinsics intrinsics, float alpha, float beta);
+
 #endif

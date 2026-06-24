@@ -134,7 +134,7 @@ void Tensor_sum_axis(const Tensor* src, Tensor* dest, int axis){
 
 
 void Tensor_copy(const Tensor* src, Tensor* dest){
-    if(src->ndim != dest->ndim || src->total_elements != dest->total_elements){
+    if(src->ndim != dest->ndim || src->total_elements > dest->total_elements){
         printf("ERROR: src_ndim(%d), dest_ndim(%d), src_total(%d), dest_total(%d)", src->ndim, dest->ndim, src->total_elements, dest->total_elements);
         return;
     }
@@ -426,7 +426,7 @@ void Tensor_matmul(Tensor* a, Tensor* b, Tensor* dest){
     exit(EXIT_FAILURE);
     }
     
-    int out_shape[a->ndim];
+    //int out_shape[a->ndim];
     int total_matrices = 1;
 
     for(int i = 0; i < a->ndim -2; i ++){
@@ -434,7 +434,7 @@ void Tensor_matmul(Tensor* a, Tensor* b, Tensor* dest){
             printf("shape at index %d doesnt match \n", i);
             return;
         }else{
-            out_shape[i] = a->shape[i];
+            //out_shape[i] = a->shape[i];
             total_matrices *= a->shape[i];    
         }
     }
@@ -443,8 +443,8 @@ void Tensor_matmul(Tensor* a, Tensor* b, Tensor* dest){
     int N = a->shape[a->ndim - 1];
     int P = b->shape[b->ndim - 1];
     
-    out_shape[a->ndim-2] = M;
-    out_shape[a->ndim-1] = P;
+    //out_shape[a->ndim-2] = M;
+    //out_shape[a->ndim-1] = P;
 
     //Tensor* dest = Tensor_make(a->ndim, out_shape);
 

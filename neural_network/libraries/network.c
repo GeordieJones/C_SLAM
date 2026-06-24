@@ -35,7 +35,7 @@ void Network_add_dense(Network* net, Layer* layer){
         return;
     }
 
-
+/*
     if(net->num_layers > 0){
         Layer* prev_layer = (Layer*)temp_layers[net->num_layers - 1].layer_data;
         printf("DEBUG: Prev output_dim: %d, New input_dim: %d\n", prev_layer->output_dim, layer->input_dim); // If it dies here, your Layer struct properties don't match!
@@ -43,6 +43,38 @@ void Network_add_dense(Network* net, Layer* layer){
             printf("ERROR: dimesions of new layer do not mathc\n");
             return;
 }
+    }*/
+
+    if(net->num_layers > 0){
+        NetworkLayer* prev_nl = &temp_layers[net->num_layers - 1];
+        int prev_output_features = 0;
+        
+        if (prev_nl->type == LAYER_DENSE) {
+            Layer* prev_layer = (Layer*)prev_nl->layer_data;
+            prev_output_features = prev_layer->output_dim;
+        } else if (prev_nl->type == LAYER_CONVOLUTION || prev_nl->type == LAYER_POOLING) {
+            // Read directly from the allocated placeholder tensor shape configuration!
+            Tensor* prev_out_tensor = net->Layer_outputs[net->num_layers - 1];
+            // If it's a 4D spatial volume, flatten it conceptually to match the incoming Dense input size
+            if (prev_out_tensor->ndim == 4) {
+                prev_output_features = prev_out_tensor->shape[1] * prev_out_tensor->shape[2] * prev_out_tensor->shape[3];
+            } else {
+                prev_output_features = prev_out_tensor->shape[1];
+            }
+        } else {
+            // Pass validation for helper/structural nodes
+            prev_output_features = layer->input_dim;
+        }
+
+        printf("DEBUG: Prev resolved elements: %d, New input_dim: %d\n", prev_output_features, layer->input_dim);
+        if(prev_output_features != layer->input_dim){
+            printf("ERROR: dimensions of new layer do not match\n");
+            // Free the allocations we just expanded to avoid leaks
+            net->layers = temp_layers;
+            net->Layer_outputs = temp_outputs;
+            net->Layer_gradients = temp_gradients;
+            return;
+        }
     }
 
 
@@ -68,7 +100,7 @@ void Network_add_dense(Network* net, Layer* layer){
 }
 
 
-void Network_add_convolution(Network* net, Layer* layer) {
+void Network_add_convolution(Network* net, Layer* layer, int out_height, int out_width) {
     int new_layers = net->num_layers + 1;
 
     NetworkLayer* temp_layers  = (NetworkLayer*)realloc(net->layers, sizeof(NetworkLayer) * new_layers);
@@ -80,6 +112,36 @@ void Network_add_convolution(Network* net, Layer* layer) {
         return;
     }
 
+
+    if(net->num_layers > 0){
+        NetworkLayer* prev_nl = &temp_layers[net->num_layers - 1];
+        int prev_channels = 0;
+        
+        if (prev_nl->type == LAYER_CONVOLUTION) {
+            Layer* prev_conv = (Layer*)prev_nl->layer_data;
+            prev_channels = prev_conv->output_channels;
+        } else if (prev_nl->type == LAYER_POOLING || prev_nl->type == LAYER_UPSAMPLE || prev_nl->type == LAYER_ADD) {
+            Tensor* prev_out_tensor = net->Layer_outputs[net->num_layers - 1];
+            prev_channels = prev_out_tensor->shape[1]; 
+        } else if (prev_nl->type == LAYER_DENSE) {
+            Layer* prev_dense = (Layer*)prev_nl->layer_data;
+            prev_channels = prev_dense->output_dim;
+        }
+
+        printf("DEBUG: Prev layer output channels: %d, New conv input channels: %d\n", prev_channels, layer->input_dim);
+        
+        if(prev_channels != layer->input_dim){
+            printf("ERROR: convolution input channels do not match previous layer output channels\n");
+            net->layers = temp_layers;
+            net->Layer_outputs = temp_outputs;
+            net->Layer_gradients = temp_gradients;
+            return; 
+        }
+    }
+
+
+
+
     net->layers = temp_layers;
     net->Layer_outputs = temp_outputs;
     net->Layer_gradients = temp_gradients;
@@ -90,10 +152,11 @@ void Network_add_convolution(Network* net, Layer* layer) {
     net->layers[target_idx].skip_source_idx = -1; 
 
     // layer->inputs_cache shape is [flat_kernel_features, out_height * out_width]
-    int out_spatial_elements = layer->inputs_cache->shape[1];
+    //int out_spatial_elements = layer->inputs_cache->shape[1];
 
     // Network_forward will dynamically scale this buffer later if batch size changes
-    int temp_size[4] = {1, layer->output_channels, 4, 4};
+    //int temp_size[4] = {1, layer->output_channels, 4, 4};
+    int temp_size[4] = {1, layer->output_channels, out_height, out_width};
 
     // For safety with get_layer_output_shape, we assign a placeholder that matches element boundaries
     net->Layer_outputs[target_idx] = Tensor_make(4, temp_size);
@@ -240,7 +303,7 @@ static void get_layer_output_shape(const Network* net, int layer_idx, const Tens
 
 Tensor* Network_forward(Network* net, const Tensor* input){
     if(!net || !input) return NULL;    
-    int batch_size = input->shape[0];
+    //int batch_size = input->shape[0];
 
     for(int i = 0; i < net->num_layers; i++){
         Tensor* current_input = (i == 0) ? (Tensor*)input : net->Layer_outputs[i-1];

@@ -475,8 +475,121 @@ Point3D* AutoLabeler_extract_raw_historical_points(AutoLabeler* labeler, uint32_
 
 
 
+void AutoLabeler_export_causal_scene_dataset(AutoLabeler* labeler, SceneGraph* finalized_graph, CameraIntrinsics intrinsics, const char* output_csv_path) {
+    if (!labeler || !finalized_graph || labeler->history_count < 2) return;
+
+    FILE* csv_file = fopen(output_csv_path, "a");
+    if (!csv_file) return;
+
+    uint32_t oldest_slot = (labeler->history_count >= MAX_KEYFRAME_HISTORY) ? labeler->history_head : 0;
+    uint32_t sequence_batch_id = labeler->total_frames_pushed;
+
+    for (uint32_t t = 0; t < labeler->history_count; t++) {
+        uint32_t current_timeline_slot = (oldest_slot + t) % MAX_KEYFRAME_HISTORY;
+        Keyframe* historical_frame = &labeler->history[current_timeline_slot];
+
+        Transform3D world_to_camera_transform = compute_rigid_inverse(&historical_frame->camera_pose);
+
+        for (uint32_t o = 0; o < finalized_graph->object_count; o++) {
+            TrackedObject* obj = &finalized_graph->objects[o];
+            
+            if (!obj->is_active || obj->movability_score > 0.15f) continue;
+
+            Point3D world_corners[8] = {
+                {obj->bbox.min_bounds.x, obj->bbox.min_bounds.y, obj->bbox.min_bounds.z},
+                {obj->bbox.max_bounds.x, obj->bbox.min_bounds.y, obj->bbox.min_bounds.z},
+                {obj->bbox.min_bounds.x, obj->bbox.max_bounds.y, obj->bbox.min_bounds.z},
+                {obj->bbox.max_bounds.x, obj->bbox.max_bounds.y, obj->bbox.min_bounds.z},
+                {obj->bbox.min_bounds.x, obj->bbox.min_bounds.y, obj->bbox.max_bounds.z},
+                {obj->bbox.max_bounds.x, obj->bbox.min_bounds.y, obj->bbox.max_bounds.z},
+                {obj->bbox.min_bounds.x, obj->bbox.max_bounds.y, obj->bbox.max_bounds.z},
+                {obj->bbox.max_bounds.x, obj->bbox.max_bounds.y, obj->bbox.max_bounds.z}
+            };
+
+            float min_u = 99999.0f, max_u = -99999.0f;
+            float min_v = 99999.0f, max_v = -99999.0f;
+            int behind_camera = 0;
+
+            for (int c = 0; c < 8; c++) {
+                Point3D local_corner = transform_point(world_corners[c], world_to_camera_transform);
+
+                if (local_corner.z <= 0.1f) {
+                    behind_camera++;
+                    continue; 
+                }
+
+                float u = (intrinsics.fx * local_corner.x / local_corner.z) + intrinsics.cx;
+                float v = (intrinsics.fy * local_corner.y / local_corner.z) + intrinsics.cy;
+
+                if (u < min_u) min_u = u;
+                if (u > max_u) max_u = u;
+                if (v < min_v) min_v = v;
+                if (v > max_v) max_v = v;
+            }
+
+            if (behind_camera == 8) continue;
+
+            if (min_u < 0) min_u = 0;  
+            if (max_u >= intrinsics.width) max_u = (float)(intrinsics.width - 1);
+            if (min_v < 0) min_v = 0;  
+            if (max_v >= intrinsics.height) max_v = (float)(intrinsics.height - 1);
+
+            if ((max_u - min_u) > 2.0f && (max_v - min_v) > 2.0f) {
+                BoundingBox2D generated_target;
+                generated_target.x_min = min_u;
+                generated_target.x_max = max_u;
+                generated_target.y_min = min_v;
+                generated_target.y_max = max_v;
+                generated_target.class_id = obj->id;
+                generated_target.confidence = 1.00f;
+
+                append_label_to_dataset_stream(csv_file, sequence_batch_id + t, obj->id, generated_target);
+            }
+        }
+    }
+
+    fclose(csv_file);
+}
 
 
 
+//this for sequential autoregressive training data generation
+uint32_t AutoLabeler_generate_autoregressive_targets(AutoLabeler* labeler, Tensor** out_training_images, BoundingBox2D* out_target_boxes, uint32_t* out_box_counts, uint32_t max_batch_size) {
+    
+    if (!labeler || !out_training_images || !out_target_boxes || !out_box_counts || labeler->history_count == 0) {
+        return 0; 
+    }
 
+    uint32_t images_harvested = 0;
+    uint32_t total_boxes_harvested = 0;
 
+    uint32_t start_idx = (labeler->history_count >= MAX_KEYFRAME_HISTORY) ? labeler->history_head : 0;
+
+    for (uint32_t i = 0; i < labeler->history_count; i++) {
+        if (images_harvested >= max_batch_size) break; // Don't exceed batch allocations
+
+        uint32_t current_slot = (start_idx + i) % MAX_KEYFRAME_HISTORY;
+        Keyframe* frame = &labeler->history[current_slot];
+
+        if (frame->label_count == 0 || frame->rgb_image == NULL) {
+            continue;
+        }
+
+        // 1. Save the unique image pointer ONCE per frame slot
+        out_training_images[images_harvested] = frame->rgb_image;
+        
+        // 2. Save how many boxes belong to this unique image slot
+        out_box_counts[images_harvested] = frame->label_count;
+
+        // 3. Pack the boxes sequentially into the flat target array
+        for (uint32_t l = 0; l < frame->label_count; l++) {
+            out_target_boxes[total_boxes_harvested] = frame->labels[l];
+            total_boxes_harvested++;
+        }
+
+        images_harvested++;
+    }
+
+    return total_boxes_harvested;
+
+}

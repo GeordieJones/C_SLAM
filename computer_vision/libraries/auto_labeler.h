@@ -54,4 +54,10 @@ uint32_t AutoLabeler_generate_pseudo_targets(AutoLabeler* labeler, Tensor** out_
 
 Point3D* AutoLabeler_extract_raw_historical_points(AutoLabeler* labeler, uint32_t target_frame_id, CameraIntrinsics intrinsics, uint32_t* out_point_count);
 
+
+
+void AutoLabeler_export_causal_scene_dataset(AutoLabeler* labeler, SceneGraph* finalized_graph, CameraIntrinsics intrinsics, const char* output_csv_path);
+
+uint32_t AutoLabeler_generate_autoregressive_targets(AutoLabeler* labeler, Tensor** out_training_images, BoundingBox2D* out_target_boxes, uint32_t* out_box_counts, uint32_t max_batch_size);
+
 #endif
