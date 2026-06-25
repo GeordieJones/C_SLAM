@@ -4,6 +4,7 @@
 #include "../../neural_network/libraries/trainer.h"
 #include "../../neural_network/libraries/layer.h"
 
+#include "../../computer_vision/libraries/slam_math.h"
 
 //essentially trainer.c / .h handels the training we just need to set up the network and layers for it to run on
 
@@ -35,14 +36,36 @@ typedef struct{
     int kernel_size;
     int output_channels;
 
-}Pipeline_config;
+}Training_config;
 
 
+typedef struct{
+
+    const char* model_path;
+    const char* point_cloud_path;
+    const char* generated_dataset_path;
+
+    int operational_mode; //1 = only run, 2 = just save data, 3 = online training
+    int max_octree_nodes;
+    int initial_objects;
+    CameraIntrinsics intrinsics;
+
+    Hyperparameters params;
+
+    float dt;
+    float min_iou_thresh;
+    int frame_count_initialization;
+    float dist_thresh;
+    float sg_tracking_threshold;
+
+    int running;    
+
+}Slam_pipeline;
 
 
-int make_and_run_training(const Pipeline_config* config);
+int make_and_run_training(const Training_config* config);
 
-
+int run_slam_pipeline(const Slam_pipeline* config);
 
 
 

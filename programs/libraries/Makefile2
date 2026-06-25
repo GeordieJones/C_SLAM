@@ -1,12 +1,10 @@
 CC = gcc
 
 # Optimization flags and include headers search paths
-# ADDED: -finstrument-functions to instrument the pipeline + metrics include path
-CFLAGS = -O3 -Wall -Wextra -finstrument-functions \
+CFLAGS = -O3 -Wall -Wextra \
          -I. \
          -I../../neural_network/libraries \
-         -I../../computer_vision/libraries \
-         -I../../metrics/libraries
+         -I../../computer_vision/libraries
 
 CFLAGS += -g -O2
 CFLAGS += -no-pie
@@ -40,23 +38,9 @@ TARGET = run_slam
 
 all: $(TARGET)
 
-$(TARGET): $(SRC_COMMON) ../../metrics/libraries/timer.c
-	# 1. Compile the timer explicitly WITHOUT self-instrumentation hooks
-	$(CC) $(CFLAGS) -fno-instrument-functions -c ../../metrics/libraries/timer.c -o timer.o
-	
-	# 2. Compile everything else WITH instrumentation and link against timer.o + FFmpeg
-	$(CC) $(CFLAGS) $(SRC_COMMON) timer.o $(LDFLAGS) -o $(TARGET)
+$(TARGET): $(SRC_COMMON)
+	# Compiles all .c source files directly and links against FFmpeg libraries
+	$(CC) $(CFLAGS) $(SRC_COMMON) $(LDFLAGS) -o $(TARGET)
 
 clean:
-	rm -f $(TARGET) *.o
-
-
-
-
-
-
-
-
-
-# this needs to be run instead of ./run_slam
-# ffmpeg -i your_video.mp4 -f rawvideo -pix_fmt rgb24 -s 640x480 - | ./run_slam
+	rm -f $(TARGET)

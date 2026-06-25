@@ -16,7 +16,7 @@ int main(void) {
     // -------------------------------------------------------------------------
     // 2. RUN #1: NYU Depth Asset Loop
     // -------------------------------------------------------------------------
-    Pipeline_config nyu_config = {
+    Training_config nyu_config = {
         .dataset_path = "../../Python_files/filtered_data/nyu_training_set.bin",
         .model_save_path = "models/nyu_distance_model.nn",
         .checkpoint_save_path = "models/nyu_chk.nn",
